@@ -2,7 +2,8 @@ import pygame
 import sys
 import random
 import os
-#from Player import Player
+
+from Player import Player
 # Инициализация Pygame
 pygame.init()
 
@@ -41,6 +42,7 @@ font = pygame.font.SysFont(None, 24)
 # Set up the screen
 clock = pygame.time.Clock()
 
+
 # Загрузка изображений (теперь 5 фреймов: stand + 4 walk)
 def load_image(filename, size):
     filepath = os.path.join(os.getcwd(), filename)
@@ -51,6 +53,7 @@ def load_image(filename, size):
         except pygame.error:
             print(f"Ошибка загрузки {filename}, fallback.")
     return None
+
 
 player_sprites = {}
 directions = ['down', 'right', 'up', 'left']
@@ -94,60 +97,8 @@ animal_images = {atype: load_image(f"{atype}.png", (PLAYER_SIZE, PLAYER_SIZE)) f
 # Загрузка изображений врагов
 enemy_img = load_image("enemy.png", (PLAYER_SIZE, PLAYER_SIZE))
 
+
 # Класс Player с обновлённой анимацией
-class Player:
-    def __init__(self):
-        self.x = WORLD_WIDTH // 2
-        self.y = WORLD_HEIGHT // 2
-        self.speed = 5
-        self.health = 100
-        self.direction = 'down'
-        self.is_moving = False
-        self.walk_timer = 0
-        self.walk_frame = 0
-
-    def move(self, keys):
-        prev_x, prev_y = self.x, self.y
-        if keys[pygame.K_LEFT]:
-            self.x -= self.speed
-            self.direction = 'left'
-        if keys[pygame.K_RIGHT]:
-            self.x += self.speed
-            self.direction = 'right'
-        if keys[pygame.K_UP]:
-            self.y -= self.speed
-            self.direction = 'up'
-        if keys[pygame.K_DOWN]:
-            self.y += self.speed
-            self.direction = 'down'
-        self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, self.x))
-        self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, self.y))
-
-        self.is_moving = (self.x != prev_x or self.y != prev_y)
-
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = player_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            text = font.render(self.direction, True, BLACK)
-            screen.blit(text, (draw_x + 5, draw_y + 5))
 
 # Resource class (без изменений)
 class Resource:
@@ -176,6 +127,7 @@ class Resource:
             else:
                 color = BROWN if self.type == 'tree' else GRAY
                 pygame.draw.rect(screen, color, (draw_x, draw_y, RESOURCE_SIZE, RESOURCE_SIZE))
+
 
 # Новый класс Animal с HP, types
 class Animal:
@@ -227,6 +179,7 @@ class Animal:
         else:
             pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))  # Green fallback
 
+
 # Класс Enemy (враг, атакующий игрока в радиусе)
 class Enemy:
     def __init__(self, x, y):
@@ -246,7 +199,7 @@ class Enemy:
         new_y = self.y + dy
 
         # Проверяем расстояние
-        distance = ((player_x - self.x)**2 + (player_y - self.y)**2)**0.5
+        distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
         if distance <= ATTACK_RANGE:
             # Двигаться к игроку
             self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, new_x))
@@ -281,7 +234,7 @@ class Enemy:
     def attack_player(self, player, dt):
         self.attack_timer += dt
         if self.attack_timer >= 2000:  # 2 секунды
-            distance = ((player.x - self.x)**2 + (player.y - self.y)**2)**0.5
+            distance = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
             if distance <= ATTACK_RANGE:
                 player.health -= self.damage
                 if player.health < 0:
@@ -296,6 +249,7 @@ class Enemy:
         else:
             pygame.draw.rect(screen, RED, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
 
+
 # Spawn resource with distance check
 def spawn_resource(existing_resources):
     attempts = 100
@@ -309,7 +263,7 @@ def spawn_resource(existing_resources):
         for res in existing_resources:
             dx = candidate.x - res.x
             dy = candidate.y - res.y
-            distance = (dx**2 + dy**2)**0.5
+            distance = (dx ** 2 + dy ** 2) ** 0.5
             if distance < MIN_DISTANCE:
                 too_close = True
                 break
@@ -320,6 +274,7 @@ def spawn_resource(existing_resources):
     y = random.randint(0, WORLD_HEIGHT - RESOURCE_SIZE)
     type_ = random.choice(['tree', 'rock'])
     return Resource(x, y, type_)
+
 
 # Spawn animal with distance check (обновлено для type)
 def spawn_animal(existing_objects, animal_types):
@@ -334,7 +289,7 @@ def spawn_animal(existing_objects, animal_types):
         for obj in existing_objects:
             dx = candidate.x - obj.x
             dy = candidate.y - obj.y
-            distance = (dx**2 + dy**2)**0.5
+            distance = (dx ** 2 + dy ** 2) ** 0.5
             if distance < MIN_DISTANCE:
                 too_close = True
                 break
@@ -345,6 +300,7 @@ def spawn_animal(existing_objects, animal_types):
     y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
     animal_type = random.choice(animal_types)
     return Animal(x, y, animal_type)
+
 
 # Spawn enemy (аналогично)
 def spawn_enemy(existing_objects):
@@ -357,7 +313,7 @@ def spawn_enemy(existing_objects):
         for obj in existing_objects:
             dx = candidate.x - obj.x
             dy = candidate.y - obj.y
-            distance = (dx**2 + dy**2)**0.5
+            distance = (dx ** 2 + dy ** 2) ** 0.5
             if distance < MIN_DISTANCE:
                 too_close = True
                 break
@@ -367,10 +323,12 @@ def spawn_enemy(existing_objects):
     y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
     return Enemy(x, y)
 
+
 def update_camera(player, camera_x, camera_y):
     camera_x = max(0, min(WORLD_WIDTH - SCREEN_WIDTH, player.x - SCREEN_WIDTH // 2))
     camera_y = max(0, min(WORLD_HEIGHT - SCREEN_HEIGHT, player.y - SCREEN_HEIGHT // 2))
     return camera_x, camera_y
+
 
 # Функция для рисования меню инвентаря (обновлено: добавлен Meat)
 def draw_inventory_menu(screen, inventory, menu_pos):
@@ -389,6 +347,7 @@ def draw_inventory_menu(screen, inventory, menu_pos):
     screen.blit(font.render(f"Камень: {inventory['stone']}", True, WHITE), (menu_pos[0] + 10, inv_y + 30))
     screen.blit(font.render(f"Еда: {inventory['food']}", True, WHITE), (menu_pos[0] + 10, inv_y + 60))
     screen.blit(font.render(f"Мясо: {inventory['meat']}", True, WHITE), (menu_pos[0] + 10, inv_y + 90))  # Новое: Мясо
+
 
 # Функция для рисования меню крафта (обновлено для меча)
 def draw_craft_menu(screen, inventory, tools, menu_pos):
@@ -457,6 +416,7 @@ def draw_craft_menu(screen, inventory, tools, menu_pos):
 
     return buttons  # Возвращаем кнопки для обработки кликов
 
+
 # Функция для обработки крафта (обновлено для меча)
 def handle_craft(tool_name, inventory, tools):
     if tool_name == 'axe' and inventory['wood'] >= 3 and inventory['stone'] >= 2 and not tools['axe']:
@@ -480,8 +440,10 @@ def handle_craft(tool_name, inventory, tools):
     else:
         print("Недостаточно ресурсов или инструмент уже скрафчен!")
         return False
+
+
 def main():
-    player = Player()
+    player = Player(font, player_sprites)
     inventory = {'wood': 20, 'stone': 20, 'food': 0, 'meat': 0}  # Новое: добавлено 'meat' для убоины врагов
     tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
     current_tool = 'hand'
@@ -522,24 +484,36 @@ def main():
         if space_cooldown > 0:
             space_cooldown -= dt
 
-        # ИЗМЕНЕНИЕ: Тайловый фон травы с вариативностью (каждый тайл - случайный вариант из grass_tiles)
-        for x in range(-TILE_SIZE, SCREEN_WIDTH + TILE_SIZE, TILE_SIZE):
-            for y in range(-TILE_SIZE, SCREEN_HEIGHT + TILE_SIZE, TILE_SIZE):
-                world_x = x + camera_x
-                world_y = y + camera_y
+        # ИСПРАВЛЕННАЯ ОТРИСОВКА ФОНА
+        # Очистка экрана
+        screen.fill(GRASS_GREEN)
+
+        # Расчет правильных границ для отрисовки тайлов
+        start_x = camera_x // TILE_SIZE
+        start_y = camera_y // TILE_SIZE
+        end_x = (camera_x + SCREEN_WIDTH) // TILE_SIZE + 1
+        end_y = (camera_y + SCREEN_HEIGHT) // TILE_SIZE + 1
+
+        # Отрисовка только видимых тайлов
+        for tile_x in range(start_x, end_x):
+            for tile_y in range(start_y, end_y):
+                world_x = tile_x * TILE_SIZE
+                world_y = tile_y * TILE_SIZE
+
+                # Проверка, что тайл в пределах мира
                 if 0 <= world_x < WORLD_WIDTH and 0 <= world_y < WORLD_HEIGHT:
-                    tile_draw_x = x - (camera_x % TILE_SIZE)
-                    tile_draw_y = y - (camera_y % TILE_SIZE)
-                    # Вычисляем индекс тайла для детерминированного выбора
-                    tile_x = int(world_x // TILE_SIZE)
-                    tile_y = int(world_y // TILE_SIZE)
-                    # Seed на основе позиции (чтобы постоянно)
-                    random.seed(tile_x * 12345 + tile_y * 67890)  # Произвольные множители
-                    variant = random.choice(grass_tiles)  # Выбираем случайный из списка
+                    # Вычисляем позицию для отрисовки на экране
+                    draw_x = world_x - camera_x
+                    draw_y = world_y - camera_y
+
+                    # Выбираем случайный тайл (детерминировано)
+                    random.seed(tile_x * 12345 + tile_y * 67890)
+                    variant = random.choice(grass_tiles)
+
                     if variant:
-                        screen.blit(variant, (tile_draw_x, tile_draw_y))
+                        screen.blit(variant, (draw_x, draw_y))
                     else:
-                        pygame.draw.rect(screen, GRASS_GREEN, (tile_draw_x, tile_draw_y, TILE_SIZE, TILE_SIZE))
+                        pygame.draw.rect(screen, GRASS_GREEN, (draw_x, draw_y, TILE_SIZE, TILE_SIZE))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -627,13 +601,13 @@ def main():
                 space_cooldown = 200  # **Новое: 1-секундный cooldown**
 
         # Рисуем мир
-        player.draw(screen, camera_x, camera_y)
         for res in resources:
             res.draw(screen, camera_x, camera_y)
         for animal in animals:
             animal.draw(screen, camera_x, camera_y)  # Добавлено рисование животных
         for enemy in enemies:
             enemy.draw(screen, camera_x, camera_y)  # Рисуем врагов
+        player.draw(screen, camera_x, camera_y)
 
         # UI (только если меню закрыты)
         if not inventory_open and not craft_open:
@@ -672,6 +646,7 @@ def main():
 
     pygame.quit()
     sys.exit()
+
 
 if __name__ == "__main__":
     main()

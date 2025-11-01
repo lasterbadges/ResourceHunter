@@ -1,6 +1,14 @@
-import pygame
+import  pygame
+GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+PLAYER_SIZE = 40
+WORLD_WIDTH = 3000
+WORLD_HEIGHT = 3000
+
 class Player:
-    def __init__(self, WORLD_WIDTH, WORLD_HEIGHT):
+    def __init__(self, font, player_sprites):
+        self.player_sprites = player_sprites
+        self.font = font
         self.x = WORLD_WIDTH // 2
         self.y = WORLD_HEIGHT // 2
         self.speed = 5
@@ -42,13 +50,14 @@ class Player:
         draw_y = self.y - camera_y
 
         if self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
+            sprite = self.player_sprites[self.direction]['walk'][self.walk_frame]
         else:
-            sprite = player_sprites[self.direction]['stand']
+            sprite = self.player_sprites[self.direction]['stand']
 
         if sprite:
             screen.blit(sprite, (draw_x, draw_y))
         else:
             pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            text = font.render(self.direction, True, BLACK)
+            text = self.font.render(self.direction, True, BLACK)
             screen.blit(text, (draw_x + 5, draw_y + 5))
+
