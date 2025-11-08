@@ -308,8 +308,28 @@ class Enemy:
         self.direction = random.choice(['down', 'right', 'up', 'left'])
         self.move_timer = 0
 
-    def move_towards_player(self, player_x, player_y, resources):
-        dx = max(-self.speed, min(self.speed, player_x - self.x))
+    def can_move_to_position(self, new_x, new_y, resources, enemies, player):
+        """Проверяет, может ли враг переместиться в новую позицию"""
+
+        # 1. Проверка границ мира
+        if (new_x < 0 or new_x > WORLD_WIDTH - PLAYER_SIZE or
+                new_y < 0 or new_y > WORLD_HEIGHT - PLAYER_SIZE):
+            return False
+        if (abs(new_x - player.x) < PLAYER_SIZE and
+                abs(new_y - player.y) < PLAYER_SIZE):
+            return False
+
+        # 4. Проверка столкновения с другими врагами
+        for enemy in enemies:
+            if enemy != self:  # Не проверяем столкновение с самим собой
+                if (abs(new_x - enemy.x) < PLAYER_SIZE-5 and
+                        abs(new_y - enemy.y) < PLAYER_SIZE):
+                    return False
+
+        return True
+
+    def move_towards_player(self, player_x, player_y, resources, enemies, player):
+        dx = max(-self.speed, min(self.speed, player_x- self.x))
         dy = max(-self.speed, min(self.speed, player_y - self.y))
         new_x = self.x + dx
         new_y = self.y + dy
@@ -318,8 +338,9 @@ class Enemy:
         distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
         if distance <= ATTACK_RANGE:
             # Двигаться к игроку
-            self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, new_x))
-            self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, new_y))
+            if self.can_move_to_position(new_x, new_y, resources, enemies, player):
+                self.x = new_x
+                self.y = new_y
         else:
             # Случайное движение иначе
             self.move_timer += 1
@@ -660,7 +681,7 @@ def main():
 
         # Обновление движения и атаки врагов
         for enemy in enemies:
-            enemy.move_towards_player(player.x, player.y, resources)
+            enemy.move_towards_player(player.x, player.y, resources, enemies, player)
             enemy.attack_player(player, dt)
 
         player.move(keys)
