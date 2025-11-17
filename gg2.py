@@ -613,8 +613,6 @@ def draw_menu(menu_bg):
 
 def handle_menu_events(events):
     global game_state, previous_state
-    print(f"Handling menu events, screen size: {screen.get_width()}x{screen.get_height()}")
-    print(f"screen_width: {screen_width}, screen_height: {screen_height}")
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
             mouse_pos = pygame.mouse.get_pos()
@@ -1062,7 +1060,6 @@ def main():
 
     running = True
     while running:
-        print(f"Game state: {game_state}")
         # Музыка
         if game_state in ['menu', 'pause']:
             if not pygame.mixer.music.get_busy():
@@ -1292,7 +1289,6 @@ def main():
             draw_game_over()
 
         pygame.display.flip()
-        print("Display flipped")
         clock.tick(60)
 
     pygame.quit()
