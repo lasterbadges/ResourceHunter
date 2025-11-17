@@ -448,8 +448,8 @@ class Enemy:
             return False
         for enemy in enemies:
             if enemy != self:
-                if (abs(new_x - enemy.x) < PLAYER_SIZE and
-                        abs(new_y - enemy.y) < PLAYER_SIZE):
+                if (abs(new_x - enemy.x) < PLAYER_SIZE-15 and
+                        abs(new_y - enemy.y) < PLAYER_SIZE-15):
                     return False
         return True
 
