@@ -451,9 +451,6 @@ class Enemy:
                 if (abs(new_x - enemy.x) < PLAYER_SIZE and
                         abs(new_y - enemy.y) < PLAYER_SIZE):
                     return False
-        for res in resources:
-            if abs(new_x - res.x) < RESOURCE_SIZE and abs(new_y - res.y) < RESOURCE_SIZE:
-                return False
         return True
 
     def move_towards_player(self, player_x, player_y, resources, enemies, player):
