@@ -9,11 +9,8 @@ pygame.init()
 
 # Constants
 SCREEN_WIDTH = 800
-<<<<<<< Updated upstream
 SCREEN_HEIGHT = 900
-=======
 SCREEN_HEIGHT = 800
->>>>>>> Stashed changes
 WORLD_WIDTH = 3000
 WORLD_HEIGHT = 3000
 PLAYER_SIZE = 40
