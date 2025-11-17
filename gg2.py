@@ -1007,8 +1007,8 @@ def main():
     # Загрузка фона меню и музыки
     menu_bg = load_image("menu_background.png", None)
     print(f"menu_bg loaded successfully: {menu_bg is not None}")
-    pygame.mixer.music.load("background_music.mp3")
-    pygame.mixer.music.play(-1)
+    #pygame.mixer.music.load("background_music.mp3")
+    #pygame.mixer.music.play(0)
 
     player = Player()
     game_state = 'menu'
@@ -1058,11 +1058,11 @@ def main():
     running = True
     while running:
         # Музыка
-        if game_state in ['menu', 'pause']:
-            if not pygame.mixer.music.get_busy():
-                pygame.mixer.music.play(-1)
-        else:
-            pygame.mixer.music.stop()
+        #if game_state in ['menu', 'pause']:
+            #if not pygame.mixer.music.get_busy():
+                #pygame.mixer.music.play(-1)
+        #else:
+            #pygame.mixer.music.stop()
 
         events = pygame.event.get()
         for event in events:
