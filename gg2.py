@@ -273,6 +273,7 @@ class Player:
             length = (self.dirx ** 2 + self.diry ** 2) ** 0.5
             if length > 0:
                 self.dirx /= length
+                
                 self.diry /= length
             self.x += int(self.dirx * self.speed)
             self.y += int(self.diry * self.speed)
@@ -286,7 +287,7 @@ class Player:
                     self.walk_timer = 0
             else:
                 self.walk_frame = 0
-            if keys[pygame.K_n] and not self.is_rolling and self.roll_cooldown == 0:
+            if keys[pygame.K_LSHIFT] and not self.is_rolling and self.roll_cooldown == 0:
                 self.is_rolling = True
                 self.roll_timer = 0
                 self.roll_frame = 0
