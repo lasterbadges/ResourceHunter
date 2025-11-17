@@ -9,7 +9,11 @@ pygame.init()
 
 # Constants
 SCREEN_WIDTH = 800
+<<<<<<< Updated upstream
 SCREEN_HEIGHT = 900
+=======
+SCREEN_HEIGHT = 800
+>>>>>>> Stashed changes
 WORLD_WIDTH = 3000
 WORLD_HEIGHT = 3000
 PLAYER_SIZE = 40
@@ -322,7 +326,7 @@ class Enemy:
         # 4. Проверка столкновения с другими врагами
         for enemy in enemies:
             if enemy != self:  # Не проверяем столкновение с самим собой
-                if (abs(new_x - enemy.x) < PLAYER_SIZE-5 and
+                if (abs(new_x - enemy.x) < PLAYER_SIZE-15 and
                         abs(new_y - enemy.y) < PLAYER_SIZE):
                     return False
 
