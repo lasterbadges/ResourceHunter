@@ -622,6 +622,7 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
         animal.draw(screen, camera_x, camera_y)
     for enemy in enemies:
         enemy.draw(screen, camera_x, camera_y)
+    player.draw(screen, camera_x, camera_y)
 
     # Добавляем полупрозрачный оверлей для лучшей читаемости меню
     overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
@@ -638,7 +639,7 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
         start_button_image = pygame.image.load(name).convert_alpha()
         screen.blit(start_button_image, start_button)
 
-    # Start Game button
+     # Start Game button
     ButtonMenuDrawer("Play.png")
 
     # Settings button
@@ -1131,9 +1132,7 @@ def main():
         # Обработка событий в зависимости от состояния
         if game_state == 'menu':
             handle_menu_events(events)
-
-            # 1. Движение игрока в меню (ИСПРАВЛЕНО ДЛЯ РЕВЕРСА и АНИМАЦИИ)
-            move_speed = 3  # Увеличим скорость для более очевидного движения
+            move_speed = 1  # Увеличим скорость для более очевидного движения
             menu_player.x += move_speed * f
 
             # Обновление состояния анимации (чтобы игрок не выглядел стоящим)
@@ -1145,12 +1144,10 @@ def main():
                 menu_player.walk_timer = 0
 
             # Проверка границ и реверс направления
-            if f > 0 and menu_player.x >= WORLD_WIDTH - PLAYER_SIZE:
+            if f > 0 and menu_player.x >= WORLD_WIDTH - screen_width // 2:
                 f = -1  # Движение влево
-                menu_player.x = WORLD_WIDTH - PLAYER_SIZE  # Коррекция, чтобы избежать выхода за границу
-            elif f < 0 and menu_player.x <= 0:
+            elif f < 0 and menu_player.x <= screen_width // 2:
                 f = 1  # Движение вправо
-                menu_player.x = 0  # Коррекция
 
             # 2. Обновляем движение животных
             for animal in menu_animals:
@@ -1193,8 +1190,6 @@ def main():
                     if player.hp <= 0:
                         game_state = 'game_over'
 
-                # ИСПРАВЛЕННАЯ ОТРИСОВКА ФОНА
-                # Очистка экрана
                 screen.fill(GRASS_GREEN)
 
                 # Расчет правильных границ для отрисовки тайлов
