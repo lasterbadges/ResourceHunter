@@ -581,9 +581,9 @@ class Enemy:
 button_width = 376
 button_height = 103
 button_x = screen_width // 2 - button_width // 2
-start_button = pygame.Rect(button_x, screen_height // 2 - 100, button_width, button_height)
-settings_button = pygame.Rect(button_x, screen_height // 2, button_width, button_height)
-quit_button = pygame.Rect(button_x, screen_height // 2 + 100, button_width, button_height)
+start_button = pygame.Rect(button_x, screen_height // 3, button_width, button_height)
+settings_button = pygame.Rect(button_x, screen_height // 3 + 103, button_width, button_height)
+quit_button = pygame.Rect(button_x, screen_height // 3 + 103 * 2, button_width, button_height)
 
 
 def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
