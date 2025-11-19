@@ -653,6 +653,10 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
 
 def handle_menu_events(events):
     global game_state, previous_state
+    mouse_pos = pygame.mouse.get_pos()
+    if start_button.collidepoint(mouse_pos):
+        print(f"DEBUG: Start button rect: {start_button}, collide: {start_button.collidepoint(mouse_pos)}")
+
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
             mouse_pos = pygame.mouse.get_pos()
