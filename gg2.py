@@ -581,11 +581,6 @@ class Enemy:
 button_width = 376
 button_height = 103
 button_x = screen_width // 2 - button_width // 2
-start_button = pygame.Rect(button_x, screen_height // 3, button_width, button_height)
-settings_button = pygame.Rect(button_x, screen_height // 3 + 103, button_width, button_height)
-quit_button = pygame.Rect(button_x, screen_height // 3 + 103 * 2, button_width, button_height)
-
-
 def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     # Отрисовываем геймплей в качестве фона меню
     screen.fill(GRASS_GREEN)
@@ -619,6 +614,7 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     for res in resources:
         res.draw(screen, camera_x, camera_y)
     for animal in animals:
+
         animal.draw(screen, camera_x, camera_y)
     for enemy in enemies:
         enemy.draw(screen, camera_x, camera_y)
@@ -649,16 +645,22 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     ButtonMenuDrawer("Exit.png", 2)
 
 
-
-
 def handle_menu_events(events):
     global game_state, previous_state
+    start_button = pygame.Rect(button_x, screen_height // 3 + 105 * 0, button_width, button_height)
+    settings_button = pygame.Rect(button_x, screen_height // 3 + 105 * 1, button_width, button_height)
+    quit_button = pygame.Rect(button_x, screen_height // 3 + 105 * 2, button_width, button_height)
+    mouse_pos = pygame.mouse.get_pos()
+    if start_button.collidepoint(mouse_pos):
+        print(f"DEBUG: Start button rect: {start_button}, collide: {start_button.collidepoint(mouse_pos)}")
+
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
             mouse_pos = pygame.mouse.get_pos()
 
             # Проверка коллизий и изменение состояния
             if start_button.collidepoint(mouse_pos):
+
                 game_state = 'game'
 
             elif settings_button.collidepoint(mouse_pos):
