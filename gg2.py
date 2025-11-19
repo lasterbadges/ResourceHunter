@@ -575,6 +575,9 @@ class Enemy:
         health_width = int((self.hp / 30) * bar_width)
         pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
+button_width = 376
+button_height = 103
+button_x = screen_width // 2 - button_width // 2
 def draw_menu(menu_bg):
     # Очистка экрана и отрисовка фона меню
     screen.fill(BLACK)
@@ -583,48 +586,36 @@ def draw_menu(menu_bg):
         screen.blit(scaled_bg, (0, 0))
 
     # Заголовок игры
-    title_text = font.render("Survival Game", True, WHITE)
+    title_text = font.render("Resource hunter", True, WHITE)
     screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 200))
 
     # Кнопки меню
-    button_width = 200
-    button_height = 50
-    button_x = screen_width // 2 - button_width // 2
+
+    def ButtonMenuDrawer(name :str, Num :int = 0):
+        start_button = pygame.Rect(button_x, screen_height // 3 + 105 * Num, button_width, button_height)
+        start_button_image = pygame.image.load(name).convert_alpha()
+        screen.blit(start_button_image, start_button)
+
 
     # Start Game button
-    start_button = pygame.Rect(button_x, screen_height // 2 - 100, button_width, button_height)
-    pygame.draw.rect(screen, GREEN, start_button)
-    start_text = font.render("Start Game", True, BLACK)
-    screen.blit(start_text, (start_button.x + (button_width - start_text.get_width()) // 2, start_button.y + (button_height - start_text.get_height()) // 2))
+    ButtonMenuDrawer("Play.png")
 
     # Settings button
-    settings_button = pygame.Rect(button_x, screen_height // 2, button_width, button_height)
-    pygame.draw.rect(screen, LIGHT_GRAY, settings_button)
-    settings_text = font.render("Settings", True, BLACK)
-    screen.blit(settings_text, (settings_button.x + (button_width - settings_text.get_width()) // 2, settings_button.y + (button_height - settings_text.get_height()) // 2))
+    ButtonMenuDrawer("Settings.png", 1)
 
     # Quit button
-    quit_button = pygame.Rect(button_x, screen_height // 2 + 100, button_width, button_height)
-    pygame.draw.rect(screen, RED, quit_button)
-    quit_text = font.render("Quit", True, BLACK)
-    screen.blit(quit_text, (quit_button.x + (button_width - quit_text.get_width()) // 2, quit_button.y + (button_height - quit_text.get_height()) // 2))
+    ButtonMenuDrawer("Exit.png", 2)
 
 def handle_menu_events(events):
     global game_state, previous_state
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
             mouse_pos = pygame.mouse.get_pos()
-            print(f"DEBUG: Mouse clicked at {mouse_pos}")
             # Определение прямоугольников кнопок (должны совпадать с draw_menu)
-            button_width = 200
-            button_height = 50
             button_x = screen_width // 2 - button_width // 2
             start_button = pygame.Rect(button_x, screen_height // 2 - 100, button_width, button_height)
             settings_button = pygame.Rect(button_x, screen_height // 2, button_width, button_height)
             quit_button = pygame.Rect(button_x, screen_height // 2 + 100, button_width, button_height)
-            print(f"DEBUG: Start button rect: {start_button}, collide: {start_button.collidepoint(mouse_pos)}")
-            print(f"DEBUG: Settings button rect: {settings_button}, collide: {settings_button.collidepoint(mouse_pos)}")
-            print(f"DEBUG: Quit button rect: {quit_button}, collide: {quit_button.collidepoint(mouse_pos)}")
 
             # Проверка коллизий и изменение состояния
             if start_button.collidepoint(mouse_pos):
