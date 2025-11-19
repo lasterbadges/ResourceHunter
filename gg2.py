@@ -1089,6 +1089,13 @@ def main():
             for enemy in menu_enemies:
                 enemy.move_randomly(menu_resources, menu_enemies, menu_player)
 
+
+            for animal in menu_animals:
+                animal.draw(screen, menu_camera_x, menu_camera_y)  # Добавлено рисование животных
+            for enemy in menu_enemies:
+                enemy.draw(screen, menu_camera_x, menu_camera_y)  # Рисуем врагов
+            player.draw(screen, menu_camera_x, menu_camera_y)
+
             draw_menu( menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
 
 
