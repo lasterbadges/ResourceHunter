@@ -622,7 +622,6 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
         animal.draw(screen, camera_x, camera_y)
     for enemy in enemies:
         enemy.draw(screen, camera_x, camera_y)
-    player.draw(screen, camera_x, camera_y)
 
     # Добавляем полупрозрачный оверлей для лучшей читаемости меню
     overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
@@ -1046,63 +1045,34 @@ def main():
     tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
     current_tool = 'hand'
     space_cooldown = 0  # **Новое: cooldown для SPACE в мс**
-    def MenuCreator():
-        menu_camera_x = 0
-        menu_camera_y = 0
-        menu_player = Player()  # Специальный игрок для меню
-        menu_player.x = WORLD_WIDTH // 2
-        menu_player.y = WORLD_HEIGHT // 2
 
-        # Создаем отдельные наборы объектов для меню
-        menu_resources = []
-        for _ in range(20):
-            new_res = spawn_resource(menu_resources)
-            menu_resources.append(new_res)
+    menu_camera_x = 0
+    menu_camera_y = 0
+    menu_player = Player()  # Специальный игрок для меню
+    menu_player.x = WORLD_WIDTH // 2
+    menu_player.y = WORLD_HEIGHT // 2
 
-        menu_animals = []
-        for _ in range(10):
-            new_animal = spawn_animal(menu_resources + menu_animals, animal_types)
-            menu_animals.append(new_animal)
+    # Создаем отдельные наборы объектов для меню
+    menu_resources = []
+    for _ in range(20):
+        new_res = spawn_resource(menu_resources)
+        menu_resources.append(new_res)
 
-        menu_enemies = []
-        for _ in range(5):
-            new_enemy = spawn_enemy(menu_resources + menu_animals + menu_enemies)
-            menu_enemies.append(new_enemy)
+    menu_animals = []
+    for _ in range(10):
+        new_animal = spawn_animal(menu_resources + menu_animals, animal_types)
+        menu_animals.append(new_animal)
 
-        # В цикле while running, в блоке if game_state == 'menu':
-        if game_state == 'menu':
-            # Обновляем камеру для следования за игроком в меню
-            menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
+    menu_enemies = []
+    for _ in range(5):
+        new_enemy = spawn_enemy(menu_resources + menu_animals + menu_enemies)
+        menu_enemies.append(new_enemy)
 
-            # Легкое движение игрока в меню для оживления фона
-            menu_keys = [0] * 323  # Пустой массив клавиш
-            # Заставляем игрока двигаться вправо
-            menu_player.x += 2
-            if menu_player.x > WORLD_WIDTH - PLAYER_SIZE:
-                menu_player.x = 0
+    # Инициализируем камеру меню
+    menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
 
-            # Обновляем движение животных
-            for animal in menu_animals:
-                animal.move(menu_resources)
-
-            # Обновляем движение врагов (без преследования игрока меню)
-            for enemy in menu_enemies:
-                enemy.move_randomly(menu_resources, menu_enemies, menu_player)
-
-
-            for animal in menu_animals:
-                animal.draw(screen, menu_camera_x, menu_camera_y)  # Добавлено рисование животных
-            for enemy in menu_enemies:
-                enemy.draw(screen, menu_camera_x, menu_camera_y)  # Рисуем врагов
-            player.draw(screen, menu_camera_x, menu_camera_y)
-
-            draw_menu( menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
-
-
-        #pygame.mixer.music.load("background_music.mp3")
-        #pygame.mixer.music.play(0)
-
-    MenuCreator()
+    # pygame.mixer.music.load("background_music.mp3")
+    # pygame.mixer.music.play(0)
 
     # Загрузка сохранения
     save_data = load_game()
@@ -1141,40 +1111,17 @@ def main():
 
     last_time = pygame.time.get_ticks()
 
-    menu_camera_x = 0
-    menu_camera_y = 0
-    menu_player = Player()  # Специальный игрок для меню
-    menu_player.x = WORLD_WIDTH // 2
-    menu_player.y = WORLD_HEIGHT // 2
 
-    # Создаем отдельные наборы объектов для меню
-    menu_resources = []
-    for _ in range(20):
-        new_res = spawn_resource(menu_resources)
-        menu_resources.append(new_res)
 
-    menu_animals = []
-    for _ in range(10):
-        new_animal = spawn_animal(menu_resources + menu_animals, animal_types)
-        menu_animals.append(new_animal)
-
-    menu_enemies = []
-    for _ in range(5):
-        new_enemy = spawn_enemy(menu_resources + menu_animals + menu_enemies)
-        menu_enemies.append(new_enemy)
-    # Обновляем камеру для следования за игроком в меню
-    menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
-
-    # Легкое движение игрока в меню для оживления фона
-    menu_keys = [0] * 323  # Пустой массив клавиш
+    f = 1  # Управляющий фактор направления для фона меню (1: вправо, -1: влево)
     running = True
     while running:
         # Музыка
-        #if game_state in ['menu', 'pause']:
-            #if not pygame.mixer.music.get_busy():
-                #pygame.mixer.music.play(-1)
-        #else:
-            #pygame.mixer.music.stop()
+        # if game_state in ['menu', 'pause']:
+        # if not pygame.mixer.music.get_busy():
+        # pygame.mixer.music.play(-1)
+        # else:
+        # pygame.mixer.music.stop()
 
         events = pygame.event.get()
         for event in events:
@@ -1184,19 +1131,40 @@ def main():
         # Обработка событий в зависимости от состояния
         if game_state == 'menu':
             handle_menu_events(events)
-            # Заставляем игрока двигаться вправо
-            menu_player.x += 2
-            if menu_player.x > WORLD_WIDTH - PLAYER_SIZE:
-                menu_player.x = 0
 
-            # Обновляем движение животных
+            # 1. Движение игрока в меню (ИСПРАВЛЕНО ДЛЯ РЕВЕРСА и АНИМАЦИИ)
+            move_speed = 3  # Увеличим скорость для более очевидного движения
+            menu_player.x += move_speed * f
+
+            # Обновление состояния анимации (чтобы игрок не выглядел стоящим)
+            menu_player.is_moving = True
+            menu_player.direction = 'right' if f > 0 else 'left'
+            menu_player.walk_timer += 1
+            if menu_player.walk_timer >= 10:
+                menu_player.walk_frame = (menu_player.walk_frame + 1) % 4
+                menu_player.walk_timer = 0
+
+            # Проверка границ и реверс направления
+            if f > 0 and menu_player.x >= WORLD_WIDTH - PLAYER_SIZE:
+                f = -1  # Движение влево
+                menu_player.x = WORLD_WIDTH - PLAYER_SIZE  # Коррекция, чтобы избежать выхода за границу
+            elif f < 0 and menu_player.x <= 0:
+                f = 1  # Движение вправо
+                menu_player.x = 0  # Коррекция
+
+            # 2. Обновляем движение животных
             for animal in menu_animals:
                 animal.move(menu_resources)
 
-            # Обновляем движение врагов (без преследования игрока меню)
+            # 3. Обновляем движение врагов
             for enemy in menu_enemies:
+                # В меню они просто бродят
                 enemy.move_randomly(menu_resources, menu_enemies, menu_player)
 
+            # 4. Обновляем камеру меню, чтобы она следовала за игроком
+            menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
+
+            # 5. Отрисовка фона меню
             draw_menu(menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
         elif game_state == 'settings':
             handle_settings_events(events)
@@ -1206,8 +1174,8 @@ def main():
             handle_game_over_events(events)
 
         # Рисование в зависимости от состояния
-        if game_state == 'menu':
-            MenuCreator()
+        if game_state == "main":
+            draw_menu(menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
         elif game_state == 'game':
             try:
                 current_time = pygame.time.get_ticks()
