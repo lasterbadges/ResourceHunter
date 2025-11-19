@@ -650,9 +650,6 @@ def handle_menu_events(events):
     start_button = pygame.Rect(button_x, screen_height // 3 + 105 * 0, button_width, button_height)
     settings_button = pygame.Rect(button_x, screen_height // 3 + 105 * 1, button_width, button_height)
     quit_button = pygame.Rect(button_x, screen_height // 3 + 105 * 2, button_width, button_height)
-    mouse_pos = pygame.mouse.get_pos()
-    if start_button.collidepoint(mouse_pos):
-        print(f"DEBUG: Start button rect: {start_button}, collide: {start_button.collidepoint(mouse_pos)}")
 
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
