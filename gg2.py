@@ -630,8 +630,8 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     screen.blit(overlay, (0, 0))
 
     # Заголовок игры
-    title_text = font.render("Resource hunter", True, WHITE)
-    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 200))
+    title_text = pygame.image.load("logo2.png").convert_alpha()
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 300))
 
     # Кнопки меню
     def ButtonMenuDrawer(name: str, Num: int = 0):
