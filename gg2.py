@@ -575,69 +575,98 @@ class Enemy:
         health_width = int((self.hp / 30) * bar_width)
         pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
-def draw_menu(menu_bg):
-    # Очистка экрана и отрисовка фона меню
-    screen.fill(BLACK)
-    if menu_bg:
-        scaled_bg = pygame.transform.scale(menu_bg, (screen_width, screen_height))
-        screen.blit(scaled_bg, (0, 0))
+
+
+
+button_width = 376
+button_height = 103
+button_x = screen_width // 2 - button_width // 2
+start_button = pygame.Rect(button_x, screen_height // 2 - 100, button_width, button_height)
+settings_button = pygame.Rect(button_x, screen_height // 2, button_width, button_height)
+quit_button = pygame.Rect(button_x, screen_height // 2 + 100, button_width, button_height)
+
+
+def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
+    # Отрисовываем геймплей в качестве фона меню
+    screen.fill(GRASS_GREEN)
+
+    # Отрисовка фона (травы) - аналогично основной игре
+    start_x = camera_x // TILE_SIZE
+    start_y = camera_y // TILE_SIZE
+    end_x = (camera_x + screen_width) // TILE_SIZE + 1
+    end_y = (camera_y + screen_height) // TILE_SIZE + 1
+
+    for tile_x in range(start_x, end_x):
+        for tile_y in range(start_y, end_y):
+            world_x = tile_x * TILE_SIZE
+            world_y = tile_y * TILE_SIZE
+
+            if 0 <= world_x < WORLD_WIDTH and 0 <= world_y < WORLD_HEIGHT:
+                draw_x = world_x - camera_x
+                draw_y = world_y - camera_y
+
+                random.seed(tile_x * 12345 + tile_y * 67890)
+                if grass_tiles:
+                    variant = random.choice(grass_tiles)
+                    if variant:
+                        screen.blit(variant, (draw_x, draw_y))
+                    else:
+                        pygame.draw.rect(screen, GRASS_GREEN, (draw_x, draw_y, TILE_SIZE, TILE_SIZE))
+                else:
+                    pygame.draw.rect(screen, GRASS_GREEN, (draw_x, draw_y, TILE_SIZE, TILE_SIZE))
+
+    # Отрисовываем игровые объекты
+    for res in resources:
+        res.draw(screen, camera_x, camera_y)
+    for animal in animals:
+        animal.draw(screen, camera_x, camera_y)
+    for enemy in enemies:
+        enemy.draw(screen, camera_x, camera_y)
+    player.draw(screen, camera_x, camera_y)
+
+    # Добавляем полупрозрачный оверлей для лучшей читаемости меню
+    overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 128))  # Полупрозрачный черный
+    screen.blit(overlay, (0, 0))
 
     # Заголовок игры
-    title_text = font.render("Survival Game", True, WHITE)
+    title_text = font.render("Resource hunter", True, WHITE)
     screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 200))
 
     # Кнопки меню
-    button_width = 200
-    button_height = 50
-    button_x = screen_width // 2 - button_width // 2
+    def ButtonMenuDrawer(name: str, Num: int = 0):
+        start_button = pygame.Rect(button_x, screen_height // 3 + 105 * Num, button_width, button_height)
+        start_button_image = pygame.image.load(name).convert_alpha()
+        screen.blit(start_button_image, start_button)
 
-    # Start Game button
-    start_button = pygame.Rect(button_x, screen_height // 2 - 100, button_width, button_height)
-    pygame.draw.rect(screen, GREEN, start_button)
-    start_text = font.render("Start Game", True, BLACK)
-    screen.blit(start_text, (start_button.x + (button_width - start_text.get_width()) // 2, start_button.y + (button_height - start_text.get_height()) // 2))
+     # Start Game button
+    ButtonMenuDrawer("Play.png")
 
     # Settings button
-    settings_button = pygame.Rect(button_x, screen_height // 2, button_width, button_height)
-    pygame.draw.rect(screen, LIGHT_GRAY, settings_button)
-    settings_text = font.render("Settings", True, BLACK)
-    screen.blit(settings_text, (settings_button.x + (button_width - settings_text.get_width()) // 2, settings_button.y + (button_height - settings_text.get_height()) // 2))
+    ButtonMenuDrawer("Settings.png", 1)
 
     # Quit button
-    quit_button = pygame.Rect(button_x, screen_height // 2 + 100, button_width, button_height)
-    pygame.draw.rect(screen, RED, quit_button)
-    quit_text = font.render("Quit", True, BLACK)
-    screen.blit(quit_text, (quit_button.x + (button_width - quit_text.get_width()) // 2, quit_button.y + (button_height - quit_text.get_height()) // 2))
+    ButtonMenuDrawer("Exit.png", 2)
+
+
+
 
 def handle_menu_events(events):
     global game_state, previous_state
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
             mouse_pos = pygame.mouse.get_pos()
-            print(f"DEBUG: Mouse clicked at {mouse_pos}")
-            # Определение прямоугольников кнопок (должны совпадать с draw_menu)
-            button_width = 200
-            button_height = 50
-            button_x = screen_width // 2 - button_width // 2
-            start_button = pygame.Rect(button_x, screen_height // 2 - 100, button_width, button_height)
-            settings_button = pygame.Rect(button_x, screen_height // 2, button_width, button_height)
-            quit_button = pygame.Rect(button_x, screen_height // 2 + 100, button_width, button_height)
-            print(f"DEBUG: Start button rect: {start_button}, collide: {start_button.collidepoint(mouse_pos)}")
-            print(f"DEBUG: Settings button rect: {settings_button}, collide: {settings_button.collidepoint(mouse_pos)}")
-            print(f"DEBUG: Quit button rect: {quit_button}, collide: {quit_button.collidepoint(mouse_pos)}")
 
             # Проверка коллизий и изменение состояния
             if start_button.collidepoint(mouse_pos):
                 game_state = 'game'
-                print("DEBUG: Переход в состояние игры.")
-                print(f"DEBUG: game_state now: {game_state}")
+
             elif settings_button.collidepoint(mouse_pos):
                 previous_state = 'menu'
                 game_state = 'settings'
-                print("DEBUG: Переход в настройки.")
-                print(f"DEBUG: game_state now: {game_state}")
+
             elif quit_button.collidepoint(mouse_pos):
-                print("DEBUG: Выход из игры.")
+
                 pygame.quit()
                 sys.exit()
 
@@ -694,6 +723,10 @@ def handle_settings_events(events):
             elif back_button.collidepoint(mouse_pos):
                 game_state = previous_state
                 print(f"Returning to {previous_state} from settings")
+
+
+
+
 
 def draw_pause():
     # Полупрозрачный фон для паузы
@@ -1005,11 +1038,6 @@ def main():
     global inventory
     global tools
     global current_tool
-    # Загрузка фона меню и музыки
-    menu_bg = load_image("menu_background.png", None)
-    print(f"menu_bg loaded successfully: {menu_bg is not None}")
-    #pygame.mixer.music.load("background_music.mp3")
-    #pygame.mixer.music.play(0)
 
     player = Player()
     game_state = 'menu'
@@ -1018,6 +1046,34 @@ def main():
     tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
     current_tool = 'hand'
     space_cooldown = 0  # **Новое: cooldown для SPACE в мс**
+
+    menu_camera_x = 0
+    menu_camera_y = 0
+    menu_player = Player()  # Специальный игрок для меню
+    menu_player.x = WORLD_WIDTH // 2
+    menu_player.y = WORLD_HEIGHT // 2
+
+    # Создаем отдельные наборы объектов для меню
+    menu_resources = []
+    for _ in range(20):
+        new_res = spawn_resource(menu_resources)
+        menu_resources.append(new_res)
+
+    menu_animals = []
+    for _ in range(10):
+        new_animal = spawn_animal(menu_resources + menu_animals, animal_types)
+        menu_animals.append(new_animal)
+
+    menu_enemies = []
+    for _ in range(5):
+        new_enemy = spawn_enemy(menu_resources + menu_animals + menu_enemies)
+        menu_enemies.append(new_enemy)
+
+    # Инициализируем камеру меню
+    menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
+
+    # pygame.mixer.music.load("background_music.mp3")
+    # pygame.mixer.music.play(0)
 
     # Загрузка сохранения
     save_data = load_game()
@@ -1056,14 +1112,17 @@ def main():
 
     last_time = pygame.time.get_ticks()
 
+
+
+    f = 1  # Управляющий фактор направления для фона меню (1: вправо, -1: влево)
     running = True
     while running:
         # Музыка
-        #if game_state in ['menu', 'pause']:
-            #if not pygame.mixer.music.get_busy():
-                #pygame.mixer.music.play(-1)
-        #else:
-            #pygame.mixer.music.stop()
+        # if game_state in ['menu', 'pause']:
+        # if not pygame.mixer.music.get_busy():
+        # pygame.mixer.music.play(-1)
+        # else:
+        # pygame.mixer.music.stop()
 
         events = pygame.event.get()
         for event in events:
@@ -1073,6 +1132,37 @@ def main():
         # Обработка событий в зависимости от состояния
         if game_state == 'menu':
             handle_menu_events(events)
+            move_speed = 1  # Увеличим скорость для более очевидного движения
+            menu_player.x += move_speed * f
+
+            # Обновление состояния анимации (чтобы игрок не выглядел стоящим)
+            menu_player.is_moving = True
+            menu_player.direction = 'right' if f > 0 else 'left'
+            menu_player.walk_timer += 1
+            if menu_player.walk_timer >= 10:
+                menu_player.walk_frame = (menu_player.walk_frame + 1) % 4
+                menu_player.walk_timer = 0
+
+            # Проверка границ и реверс направления
+            if f > 0 and menu_player.x >= WORLD_WIDTH - screen_width // 2:
+                f = -1  # Движение влево
+            elif f < 0 and menu_player.x <= screen_width // 2:
+                f = 1  # Движение вправо
+
+            # 2. Обновляем движение животных
+            for animal in menu_animals:
+                animal.move(menu_resources)
+
+            # 3. Обновляем движение врагов
+            for enemy in menu_enemies:
+                # В меню они просто бродят
+                enemy.move_randomly(menu_resources, menu_enemies, menu_player)
+
+            # 4. Обновляем камеру меню, чтобы она следовала за игроком
+            menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
+
+            # 5. Отрисовка фона меню
+            draw_menu(menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
         elif game_state == 'settings':
             handle_settings_events(events)
         elif game_state == 'pause':
@@ -1081,8 +1171,8 @@ def main():
             handle_game_over_events(events)
 
         # Рисование в зависимости от состояния
-        if game_state == 'menu':
-            draw_menu(menu_bg)
+        if game_state == "main":
+            draw_menu(menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
         elif game_state == 'game':
             try:
                 current_time = pygame.time.get_ticks()
@@ -1100,8 +1190,6 @@ def main():
                     if player.hp <= 0:
                         game_state = 'game_over'
 
-                # ИСПРАВЛЕННАЯ ОТРИСОВКА ФОНА
-                # Очистка экрана
                 screen.fill(GRASS_GREEN)
 
                 # Расчет правильных границ для отрисовки тайлов
