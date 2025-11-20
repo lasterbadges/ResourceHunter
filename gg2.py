@@ -4,6 +4,7 @@ import random
 import os
 import json
 
+from healthbar import HealthBar
 
 # Инициализация Pygame
 pygame.init()
@@ -43,7 +44,6 @@ pygame.display.set_caption("Survival Game")
 font = pygame.font.SysFont(None, 24)
 # Set up the screen
 clock = pygame.time.Clock()
-
 # Функции сохранения и загрузки
 def save_game(player, inventory, tools, current_tool):
     data = {
@@ -542,12 +542,13 @@ class Enemy:
         else:
             self.walk_frame = 0
 
-    def attack_player(self, player, dt):
+    def attack_player(self, player, dt, player_health_bar):
         if not self.agro:
             return  # Не атакуем, если нет АГРО
         distance = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
         if distance <= ATTACK_RANGE and self.attack_timer <= 0:
             player.hp -= self.damage  # Предполагаем player.hp; замените на player.health если нужно
+            player_health_bar.take_damage(self.damage)
             self.attack_timer = 120
         elif self.attack_timer > 0:
             self.attack_timer -= 1
@@ -1110,7 +1111,42 @@ def main():
     menu_pos = ((screen_width - MENU_WIDTH) // 2, (screen_height - MENU_HEIGHT) // 2)  # Центр экрана
 
     last_time = pygame.time.get_ticks()
+    MAX_HP = 100
+    DAMAGE_AMOUNT = 50
+    BAR_WIDTH = 200
+    BAR_HEIGHT = 50
+    BAR_X = 0
+    BAR_Y = 100
 
+    # --- Image Loading Setup ---
+    loaded_fill_img = None
+    loaded_frame_img = None
+
+    try:
+        # Attempt to load and scale the images
+        temp_fill = pygame.image.load('progressbar1.png').convert_alpha()
+        temp_frame = pygame.image.load('progressbar2.png').convert_alpha()
+
+        loaded_fill_img = pygame.transform.scale(temp_fill, (BAR_WIDTH, BAR_HEIGHT))
+        loaded_frame_img = pygame.transform.scale(temp_frame, (BAR_WIDTH, BAR_HEIGHT))
+
+        print("Изображения полосы здоровья успешно загружены.")
+    except pygame.error as e:
+        print(f"Ошибка загрузки изображений полосы здоровья: {e}")
+        print("Используется цветная прямоугольная полоса.")
+    except FileNotFoundError:
+        print("Ошибка: Файлы изображений не найдены. Используется цветная полоса.")
+
+    # --- HealthBar Instance Creation ---
+    player_health_bar = HealthBar(
+        BAR_X,
+        BAR_Y,
+        BAR_WIDTH,
+        BAR_HEIGHT,
+        MAX_HP,
+        loaded_fill_img,
+        loaded_frame_img
+    )
 
 
     f = 1  # Управляющий фактор направления для фона меню (1: вправо, -1: влево)
@@ -1220,6 +1256,8 @@ def main():
                             else:
                                 pygame.draw.rect(screen, GRASS_GREEN, (draw_x, draw_y, TILE_SIZE, TILE_SIZE))
 
+                player_health_bar.draw(screen)
+
                 keys = pygame.key.get_pressed()
 
                 # ESC для паузы
@@ -1260,7 +1298,7 @@ def main():
                 # Обновление движения и атаки врагов
                 for enemy in enemies:
                     enemy.move_towards_player(player.x, player.y, resources, enemies, player)
-                    enemy.attack_player(player, dt)
+                    enemy.attack_player(player, dt, player_health_bar)
 
                 if player.hp <= 0:
                     game_state = 'game_over'
@@ -1372,6 +1410,7 @@ def main():
             draw_pause()
         elif game_state == 'game_over':
             draw_game_over()
+            player_health_bar.set_health(100)
 
         pygame.display.flip()
         clock.tick(60)
