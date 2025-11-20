@@ -1112,9 +1112,8 @@ def main():
 
     last_time = pygame.time.get_ticks()
     MAX_HP = 100
-    DAMAGE_AMOUNT = 50
-    BAR_WIDTH = 200
-    BAR_HEIGHT = 50
+    BAR_WIDTH = 300
+    BAR_HEIGHT = 100
     BAR_X = 0
     BAR_Y = 100
 
@@ -1256,7 +1255,7 @@ def main():
                             else:
                                 pygame.draw.rect(screen, GRASS_GREEN, (draw_x, draw_y, TILE_SIZE, TILE_SIZE))
 
-                player_health_bar.draw(screen)
+
 
                 keys = pygame.key.get_pressed()
 
@@ -1381,6 +1380,7 @@ def main():
                     screen.blit(font.render(pos_text, True, BLACK), (10, 70))
                     hint_text = font.render("Нажми I для инвентаря\nНажми C для крафта", True, BLACK)
                     screen.blit(hint_text, (10, 100))
+                    player_health_bar.draw(screen)
 
                 # Рисуем меню инвентаря (если открыто)
                 if inventory_open:
