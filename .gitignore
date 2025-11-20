@@ -182,3 +182,4 @@ cython_debug/
 *.xml
 .idea/misc.xml
 save.json
+ForTests.py
