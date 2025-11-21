@@ -6,6 +6,7 @@ import json
 import math
 
 
+
 # Инициализация Pygame
 pygame.init()
 
