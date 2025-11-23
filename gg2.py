@@ -943,6 +943,26 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 128))  # Полупрозрачный черный
     screen.blit(overlay, (0, 0))
+
+    # Заголовок игры
+    title_text = pygame.image.load("logo2.png").convert_alpha()
+    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 300))
+
+    # Кнопки меню
+    def ButtonMenuDrawer(name: str, Num: int = 0):
+        start_button = pygame.Rect(button_x, screen_height // 3 + 105 * Num, button_width, button_height)
+        start_button_image = pygame.image.load(name).convert_alpha()
+        screen.blit(start_button_image, start_button)
+
+     # Start Game button
+    ButtonMenuDrawer("Play.png")
+
+    # Settings button
+    ButtonMenuDrawer("Settings.png", 1)
+
+    # Quit button
+    ButtonMenuDrawer("Exit.png", 2)
+
  
 
 
