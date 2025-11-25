@@ -35,7 +35,7 @@ class DayNightCycle:
     def get_visibility_radius(self):
         # Returns visibility radius in screen pixels, smoothly changing with light intensity
         light_intensity = self.get_light_intensity()
-        return int((50 + 350 * light_intensity) * 1.2)  # Slightly larger: from 60 at night to 480 at day
+        return int((150 + 350 * light_intensity) * 1.2)  # Slightly larger: from 180 at night to 480 at day
 
     def create_light_around_player(self, player_position):
         # Creates light around the player to illuminate space

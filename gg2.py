@@ -506,7 +506,35 @@ class Enemy:
                     return False
         return True
 
-    def move_towards_player(self, player_x, player_y, resources, enemies, player):
+    def move_towards_player(self, player_x, player_y, resources, enemies, player, day_night_cycle=None):
+        if day_night_cycle and day_night_cycle.is_day():
+            # Убегать от игрока днем
+            distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
+            if distance > 0:
+                dx = (self.x - player_x) / distance * self.speed
+                dy = (self.y - player_y) / distance * self.speed
+                new_x = self.x + dx
+                new_y = self.y + dy
+                if self.can_move_to_position(new_x, new_y, resources, enemies, player):
+                    self.x = new_x
+                    self.y = new_y
+                    self.is_moving = True
+                    # Определить направление
+                    if dx > 0:
+                        self.direction = 'right'
+                    elif dx < 0:
+                        self.direction = 'left'
+                    elif dy > 0:
+                        self.direction = 'down'
+                    elif dy < 0:
+                        self.direction = 'up'
+                else:
+                    self.is_moving = False
+            self.hp -= 1  # Постепенная смерть днем
+            if self.hp <= 0:
+                pass  # Удаление в main
+            return
+
         distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
         prev_x, prev_y = self.x, self.y
 
@@ -1229,7 +1257,9 @@ def spawn_animal(existing_objects, animal_types):
 
 
 # Spawn enemy (аналогично)
-def spawn_enemy(existing_objects):
+def spawn_enemy(existing_objects, day_night_cycle=None):
+    if day_night_cycle and day_night_cycle.is_day():
+        return None
     attempts = 100
     for _ in range(attempts):
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
@@ -1464,13 +1494,16 @@ def main():
     # Спавн врагов
     enemies = []
     for _ in range(5):
-        new_enemy = spawn_enemy(resources + animals + enemies)
-        enemies.append(new_enemy)
+        new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+        if new_enemy:
+            enemies.append(new_enemy)
 
     # Спавн босса
     bosses = []
     new_boss = spawn_boss(resources + animals + enemies + bosses)
-    bosses.append(new_boss)
+    if new_boss:
+        bosses.append(new_boss)
+        print("Босс появился в мире!")
 
     camera_x = 0
     camera_y = 0
@@ -1584,6 +1617,12 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
+                if day_night_cycle.is_day() == False and len(enemies) < 5:
+
+                    for _ in range(5):
+                        new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                        if new_enemy:
+                            enemies.append(new_enemy)
 
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
@@ -1700,8 +1739,9 @@ def main():
                             elif isinstance(closest, Enemy):
                                 inventory['meat'] += 1
                                 enemies.remove(closest)
-                                new_enemy = spawn_enemy(resources + animals + enemies)
-                                enemies.append(new_enemy)
+                                new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                                if new_enemy:
+                                    enemies.append(new_enemy)
                             elif isinstance(closest, Boss):
                                 bosses.remove(closest)
                         target_size = closest.size if hasattr(closest, 'size') else PLAYER_SIZE
@@ -1714,14 +1754,23 @@ def main():
                     animal.move(resources)
 
                 # Обновление движения и атаки врагов
-                for enemy in enemies:
-                    enemy.move_towards_player(player.x, player.y, resources, enemies, player)
-                    enemy.attack_player(player, dt, player_health_bar)
+                for enemy in enemies[:]:
+                    enemy.move_towards_player(player.x, player.y, resources, enemies, player, day_night_cycle)
+                    if enemy.hp <= 0:
+                        enemies.remove(enemy)
+                        new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                        if new_enemy:
+                            enemies.append(new_enemy)
+                    else:
+                        enemy.attack_player(player, dt, player_health_bar)
 
                 # Обновление движения и атаки боссов
-                for boss in bosses:
+                for boss in bosses[:]:
                     boss.move_towards_player(player.x, player.y, resources, enemies, player, bosses)
-                    boss.attack_player(player, dt, fireballs)
+                    if boss.hp <= 0:
+                        bosses.remove(boss)
+                    else:
+                        boss.attack_player(player, dt, fireballs)
 
                 # Обновление огненных шаров
                 for fireball in fireballs[:]:
@@ -1793,8 +1842,9 @@ def main():
                         if enemy.hp <= 0:
                             inventory['meat'] += 1
                             enemies.remove(enemy)
-                            new_enemy = spawn_enemy(resources + animals + enemies)
-                            enemies.append(new_enemy)
+                            new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                            if new_enemy:
+                                enemies.append(new_enemy)
                             print("DEBUG: Враг убит! Meat +1")
                             # **Удалено: pygame.time.wait(200)**
                         space_cooldown = 200  # **Новое: 1-секундный cooldown**
