@@ -5,8 +5,8 @@ import os
 import json
 import math
 
-
 from healthbar import HealthBar
+from day_night import DayNightCycle
 
 # Инициализация Pygame
 pygame.init()
@@ -48,6 +48,8 @@ pygame.display.set_caption("Survival Game")
 font = pygame.font.SysFont(None, 24)
 # Set up the screen
 clock = pygame.time.Clock()
+
+
 # Функции сохранения и загрузки
 def save_game(player, inventory, tools, current_tool):
     data = {
@@ -60,6 +62,7 @@ def save_game(player, inventory, tools, current_tool):
     }
     with open('save.json', 'w') as f:
         json.dump(data, f)
+
 
 def load_game():
     try:
@@ -102,7 +105,9 @@ for dir in directions:
             load_image(f"player_{dir}_roll4.png", (PLAYER_SIZE, PLAYER_SIZE))
         ]
     }
-cooldown_sprites = {'4': load_image('cooldown_4.png', size=(64, 32)), '3': load_image('cooldown_3.png', size=(64, 32)), '2': load_image('cooldown_2.png', size=(64, 32)), '1': load_image('cooldown_1.png', size=(64, 32)), 'ready': load_image('cooldown_ready.png', size=(64, 32))}
+cooldown_sprites = {'4': load_image('cooldown_4.png', size=(64, 32)), '3': load_image('cooldown_3.png', size=(64, 32)),
+                    '2': load_image('cooldown_2.png', size=(64, 32)), '1': load_image('cooldown_1.png', size=(64, 32)),
+                    'ready': load_image('cooldown_ready.png', size=(64, 32))}
 
 # Fallback для left: flip от right, если нет спрайтов
 for key in ['stand', 'walk', 'roll']:
@@ -113,8 +118,6 @@ for key in ['stand', 'walk', 'roll']:
     else:
         if player_sprites['right'][key] is not None and not player_sprites['left'][key]:
             player_sprites['left'][key] = pygame.transform.flip(player_sprites['right'][key], True, False)
-
-
 
 # Список типов животных (добавьте свои: ['cow', 'wolf', 'sheep'] и т.д.)
 animal_types = ['cow', 'wolf', 'sheep']
@@ -140,14 +143,16 @@ for animal_type in animal_types:
     for key in ['stand', 'walk']:
         if key == 'stand':
             if animal_sprites[animal_type]['right'][key] is not None:
-                animal_sprites[animal_type]['left'][key] = pygame.transform.flip(animal_sprites[animal_type]['right'][key], True, False)
+                animal_sprites[animal_type]['left'][key] = pygame.transform.flip(
+                    animal_sprites[animal_type]['right'][key], True, False)
             else:
                 animal_sprites[animal_type]['left'][key] = None
         elif key == 'walk':
             animal_sprites[animal_type]['left'][key] = []
             for i in range(4):
                 if animal_sprites[animal_type]['right'][key][i] is not None:
-                    animal_sprites[animal_type]['left'][key].append(pygame.transform.flip(animal_sprites[animal_type]['right'][key][i], True, False))
+                    animal_sprites[animal_type]['left'][key].append(
+                        pygame.transform.flip(animal_sprites[animal_type]['right'][key][i], True, False))
                 else:
                     animal_sprites[animal_type]['left'][key].append(None)
 
@@ -208,7 +213,6 @@ for key in ['stand', 'walk']:
             else:
                 boss_sprites['left'][key].append(None)
 
-
 tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
 rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
 
@@ -222,8 +226,8 @@ grass_tiles = [
 grass_tiles = [tile for tile in grass_tiles if tile]
 
 # Загрузка изображений животных (расширяемо: список типов)
-#animal_types = ['deer', 'wolf']  # Легко добавить новые, например 'bear'
-#animal_images = {atype: load_image(f"{atype}.png", (PLAYER_SIZE, PLAYER_SIZE)) for atype in animal_types}
+# animal_types = ['deer', 'wolf']  # Легко добавить новые, например 'bear'
+# animal_images = {atype: load_image(f"{atype}.png", (PLAYER_SIZE, PLAYER_SIZE)) for atype in animal_types}
 
 # Загрузка изображений врагов
 enemy_img = load_image("enemy.png", (PLAYER_SIZE, PLAYER_SIZE))
@@ -311,7 +315,7 @@ class Player:
             length = (self.dirx ** 2 + self.diry ** 2) ** 0.5
             if length > 0:
                 self.dirx /= length
-                
+
                 self.diry /= length
             self.x += int(self.dirx * self.speed)
             self.y += int(self.diry * self.speed)
@@ -364,6 +368,7 @@ class Player:
             text = self.font.render(self.direction, True, BLACK)
             screen.blit(text, (draw_x + 5, draw_y + 5))
 
+
 # Resource class (без изменений)
 class Resource:
     def __init__(self, x, y, type_):
@@ -391,7 +396,6 @@ class Resource:
             else:
                 color = BROWN if self.type == 'tree' else GRAY
                 pygame.draw.rect(screen, color, (draw_x, draw_y, RESOURCE_SIZE, RESOURCE_SIZE))
-
 
 
 # Класс Animal (с типом и анимацией)
@@ -471,6 +475,7 @@ class Animal:
         health_width = int((self.hp / 10) * bar_width)
         pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
+
 class Enemy:
     def __init__(self, x, y):
         self.x = x
@@ -496,8 +501,8 @@ class Enemy:
             return False
         for enemy in enemies:
             if enemy != self:
-                if (abs(new_x - enemy.x) < PLAYER_SIZE-15 and
-                        abs(new_y - enemy.y) < PLAYER_SIZE-15):
+                if (abs(new_x - enemy.x) < PLAYER_SIZE - 15 and
+                        abs(new_y - enemy.y) < PLAYER_SIZE - 15):
                     return False
         return True
 
@@ -630,7 +635,7 @@ class Fireball:
         self.y = y
         dx = target_x - x
         dy = target_y - y
-        dist = (dx**2 + dy**2)**0.5
+        dist = (dx ** 2 + dy ** 2) ** 0.5
         if dist > 0:
             self.dx = dx / dist * speed
             self.dy = dy / dist * speed
@@ -652,7 +657,9 @@ class Fireball:
     def draw(self, screen, camera_x, camera_y):
         draw_x = self.x - camera_x
         draw_y = self.y - camera_y
-        pygame.draw.circle(screen, (255, 100, 0), (int(draw_x + self.size//2), int(draw_y + self.size//2)), self.size//2)
+        pygame.draw.circle(screen, (255, 100, 0), (int(draw_x + self.size // 2), int(draw_y + self.size // 2)),
+                           self.size // 2)
+
 
 class Lightning:
     def __init__(self, x1, y1, x2, y2):
@@ -686,6 +693,7 @@ class Lightning:
             screen.blit(rotated_img, rect)
         else:
             pygame.draw.rect(screen, (255, 255, 0), (mid_x - camera_x, mid_y - camera_y, 15, 50))
+
 
 class Boss:
     def __init__(self, x, y):
@@ -836,7 +844,7 @@ class Boss:
             # Толкаем игрока назад с кувырком
             dx = player.x - self.x
             dy = player.y - self.y
-            dist = (dx**2 + dy**2)**0.5
+            dist = (dx ** 2 + dy ** 2) ** 0.5
             if dist > 0:
                 player.dirx = dx / dist
                 player.diry = dy / dist
@@ -863,7 +871,8 @@ class Boss:
             current_time = pygame.time.get_ticks()
             if current_time - self.aim_start_time >= 1500:  # 1.5 сек
                 # Выпустить fireball
-                fireball = Fireball(self.x + self.size//2, self.y + self.size//2, player.x + PLAYER_SIZE//2, player.y + PLAYER_SIZE//2)
+                fireball = Fireball(self.x + self.size // 2, self.y + self.size // 2, player.x + PLAYER_SIZE // 2,
+                                    player.y + PLAYER_SIZE // 2)
                 fireballs.append(fireball)
                 self.aiming = False
         elif self.ranged_timer > 0:
@@ -894,13 +903,15 @@ class Boss:
 
         # Полоска прицеливания
         if self.aiming:
-            pygame.draw.line(screen, (255, 255, 0), (draw_x + self.size//2, draw_y + self.size//2), (player.x - camera_x + PLAYER_SIZE//2, player.y - camera_y + PLAYER_SIZE//2), 3)
-
+            pygame.draw.line(screen, (255, 255, 0), (draw_x + self.size // 2, draw_y + self.size // 2),
+                             (player.x - camera_x + PLAYER_SIZE // 2, player.y - camera_y + PLAYER_SIZE // 2), 3)
 
 
 button_width = 376
 button_height = 103
 button_x = screen_width // 2 - button_width // 2
+
+
 def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     # Отрисовываем геймплей в качестве фона меню
     screen.fill(GRASS_GREEN)
@@ -934,7 +945,6 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     for res in resources:
         res.draw(screen, camera_x, camera_y)
     for animal in animals:
-
         animal.draw(screen, camera_x, camera_y)
     for enemy in enemies:
         enemy.draw(screen, camera_x, camera_y)
@@ -955,7 +965,7 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
         start_button_image = pygame.image.load(name).convert_alpha()
         screen.blit(start_button_image, start_button)
 
-     # Start Game button
+    # Start Game button
     ButtonMenuDrawer("Play.png")
 
     # Settings button
@@ -963,8 +973,6 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
 
     # Quit button
     ButtonMenuDrawer("Exit.png", 2)
-
- 
 
 
 def handle_menu_events(events):
@@ -991,6 +999,7 @@ def handle_menu_events(events):
                 pygame.quit()
                 sys.exit()
 
+
 def draw_settings():
     # Полупрозрачный фон
     overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
@@ -998,37 +1007,38 @@ def draw_settings():
     screen.blit(overlay, (0, 0))
     # Заголовок
     title = font.render("Settings", True, WHITE)
-    screen.blit(title, (screen_width//2 - 50, screen_height//2 - 150))
+    screen.blit(title, (screen_width // 2 - 50, screen_height // 2 - 150))
     # Кнопки разрешений
-    res1_button = pygame.Rect(screen_width//2 - 100, screen_height//2 - 100, 200, 50)
+    res1_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 - 100, 200, 50)
     pygame.draw.rect(screen, LIGHT_GRAY, res1_button)
     res1_text = font.render("800x800", True, BLACK)
     screen.blit(res1_text, (res1_button.x + 50, res1_button.y + 15))
 
-    res2_button = pygame.Rect(screen_width//2 - 100, screen_height//2 - 30, 200, 50)
+    res2_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 - 30, 200, 50)
     pygame.draw.rect(screen, LIGHT_GRAY, res2_button)
     res2_text = font.render("1024x768", True, BLACK)
     screen.blit(res2_text, (res2_button.x + 40, res2_button.y + 15))
 
-    res3_button = pygame.Rect(screen_width//2 - 100, screen_height//2 + 40, 200, 50)
+    res3_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 + 40, 200, 50)
     pygame.draw.rect(screen, LIGHT_GRAY, res3_button)
     res3_text = font.render("1280x720", True, BLACK)
     screen.blit(res3_text, (res3_button.x + 40, res3_button.y + 15))
 
-    back_button = pygame.Rect(screen_width//2 - 100, screen_height//2 + 110, 200, 50)
+    back_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 + 110, 200, 50)
     pygame.draw.rect(screen, RED, back_button)
     back_text = font.render("Back", True, BLACK)
     screen.blit(back_text, (back_button.x + 70, back_button.y + 15))
+
 
 def handle_settings_events(events):
     global game_state, previous_state, screen_width, screen_height, screen
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
-            res1_button = pygame.Rect(screen_width//2 - 100, screen_height//2 - 100, 200, 50)
-            res2_button = pygame.Rect(screen_width//2 - 100, screen_height//2 - 30, 200, 50)
-            res3_button = pygame.Rect(screen_width//2 - 100, screen_height//2 + 40, 200, 50)
-            back_button = pygame.Rect(screen_width//2 - 100, screen_height//2 + 110, 200, 50)
+            res1_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 - 100, 200, 50)
+            res2_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 - 30, 200, 50)
+            res3_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 + 40, 200, 50)
+            back_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 + 110, 200, 50)
             if res1_button.collidepoint(mouse_pos):
                 screen_width, screen_height = 800, 800
                 screen = pygame.display.set_mode((screen_width, screen_height))
@@ -1044,9 +1054,6 @@ def handle_settings_events(events):
             elif back_button.collidepoint(mouse_pos):
                 game_state = previous_state
                 print(f"Returning to {previous_state} from settings")
-
-
-
 
 
 def draw_pause():
@@ -1068,19 +1075,23 @@ def draw_pause():
     resume_button = pygame.Rect(button_x, screen_height // 2 - 50, button_width, button_height)
     pygame.draw.rect(screen, GREEN, resume_button)
     resume_text = font.render("Resume", True, BLACK)
-    screen.blit(resume_text, (resume_button.x + (button_width - resume_text.get_width()) // 2, resume_button.y + (button_height - resume_text.get_height()) // 2))
+    screen.blit(resume_text, (resume_button.x + (button_width - resume_text.get_width()) // 2,
+                              resume_button.y + (button_height - resume_text.get_height()) // 2))
 
     # Settings button
     settings_button = pygame.Rect(button_x, screen_height // 2 + 20, button_width, button_height)
     pygame.draw.rect(screen, LIGHT_GRAY, settings_button)
     settings_text = font.render("Settings", True, BLACK)
-    screen.blit(settings_text, (settings_button.x + (button_width - settings_text.get_width()) // 2, settings_button.y + (button_height - settings_text.get_height()) // 2))
+    screen.blit(settings_text, (settings_button.x + (button_width - settings_text.get_width()) // 2,
+                                settings_button.y + (button_height - settings_text.get_height()) // 2))
 
     # Quit to Menu button
     quit_menu_button = pygame.Rect(button_x, screen_height // 2 + 90, button_width, button_height)
     pygame.draw.rect(screen, RED, quit_menu_button)
     quit_menu_text = font.render("Quit to Menu", True, BLACK)
-    screen.blit(quit_menu_text, (quit_menu_button.x + (button_width - quit_menu_text.get_width()) // 2, quit_menu_button.y + (button_height - quit_menu_text.get_height()) // 2))
+    screen.blit(quit_menu_text, (quit_menu_button.x + (button_width - quit_menu_text.get_width()) // 2,
+                                 quit_menu_button.y + (button_height - quit_menu_text.get_height()) // 2))
+
 
 def handle_pause_events(events):
     global game_state, previous_state, inventory, tools, current_tool, player
@@ -1108,6 +1119,7 @@ def handle_pause_events(events):
                 game_state = 'menu'
                 print("Возврат в меню.")
 
+
 def draw_game_over():
     # Полупрозрачный фон
     overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
@@ -1126,12 +1138,15 @@ def draw_game_over():
     respawn_button = pygame.Rect(button_x, screen_height // 2 - 50, button_width, button_height)
     pygame.draw.rect(screen, GREEN, respawn_button)
     respawn_text = font.render("Respawn", True, BLACK)
-    screen.blit(respawn_text, (respawn_button.x + (button_width - respawn_text.get_width()) // 2, respawn_button.y + (button_height - respawn_text.get_height()) // 2))
+    screen.blit(respawn_text, (respawn_button.x + (button_width - respawn_text.get_width()) // 2,
+                               respawn_button.y + (button_height - respawn_text.get_height()) // 2))
 
     quit_button = pygame.Rect(button_x, screen_height // 2 + 20, button_width, button_height)
     pygame.draw.rect(screen, RED, quit_button)
     quit_text = font.render("Quit to Menu", True, BLACK)
-    screen.blit(quit_text, (quit_button.x + (button_width - quit_text.get_width()) // 2, quit_button.y + (button_height - quit_text.get_height()) // 2))
+    screen.blit(quit_text, (quit_button.x + (button_width - quit_text.get_width()) // 2,
+                            quit_button.y + (button_height - quit_text.get_height()) // 2))
+
 
 def handle_game_over_events(events):
     global game_state, player, inventory, tools, current_tool
@@ -1159,6 +1174,7 @@ def handle_game_over_events(events):
                 save_game(player, inventory, tools, current_tool)  # Сохранение
                 game_state = 'menu'
                 print("Quit to menu.")
+
 
 # Spawn resource with distance check
 def spawn_resource(existing_resources):
@@ -1232,6 +1248,7 @@ def spawn_enemy(existing_objects):
     x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
     y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
     return Enemy(x, y)
+
 
 # Spawn boss
 def spawn_boss(existing_objects):
@@ -1392,6 +1409,7 @@ def main():
     lightnings = []  # Список молний
     food_cooldown = 0  # Cooldown для еды
     meat_cooldown = 0  # Cooldown для мяса
+    day_night_cycle = DayNightCycle()  # Система дня и ночи
 
     menu_camera_x = 0
     menu_camera_y = 0
@@ -1499,7 +1517,6 @@ def main():
         loaded_frame_img
     )
 
-
     f = 1  # Управляющий фактор направления для фона меню (1: вправо, -1: влево)
     running = True
     while running:
@@ -1565,6 +1582,9 @@ def main():
                 dt = current_time - last_time
                 last_time = current_time
 
+                # Обновление системы дня и ночи
+                day_night_cycle.update()
+
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
                 lightning_cooldown = max(0, lightning_cooldown - dt)
@@ -1610,8 +1630,6 @@ def main():
                             else:
                                 pygame.draw.rect(screen, GRASS_GREEN, (draw_x, draw_y, TILE_SIZE, TILE_SIZE))
 
-
-
                 keys = pygame.key.get_pressed()
 
                 # ESC для паузы
@@ -1656,22 +1674,22 @@ def main():
                     closest = None
                     min_dist = 200
                     for enemy in enemies:
-                        dist = ((player.x - enemy.x)**2 + (player.y - enemy.y)**2)**0.5
+                        dist = ((player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2) ** 0.5
                         if dist < min_dist:
                             min_dist = dist
                             closest = enemy
                     for boss in bosses:
-                        dist = ((player.x - boss.x)**2 + (player.y - boss.y)**2)**0.5
+                        dist = ((player.x - boss.x) ** 2 + (player.y - boss.y) ** 2) ** 0.5
                         if dist < min_dist:
                             min_dist = dist
                             closest = boss
                     for animal in animals:
-                        dist = ((player.x - animal.x)**2 + (player.y - animal.y)**2)**0.5
+                        dist = ((player.x - animal.x) ** 2 + (player.y - animal.y) ** 2) ** 0.5
                         if dist < min_dist:
                             min_dist = dist
                             closest = animal
                     if closest:
-                        damage = random.randint(15,20)
+                        damage = random.randint(15, 20)
                         closest.hp -= damage
                         if closest.hp <= 0:
                             if isinstance(closest, Animal):
@@ -1687,7 +1705,8 @@ def main():
                             elif isinstance(closest, Boss):
                                 bosses.remove(closest)
                         target_size = closest.size if hasattr(closest, 'size') else PLAYER_SIZE
-                        lightnings.append(Lightning(player.x + PLAYER_SIZE//2, player.y + PLAYER_SIZE//2, closest.x + target_size//2, closest.y + target_size//2))
+                        lightnings.append(Lightning(player.x + PLAYER_SIZE // 2, player.y + PLAYER_SIZE // 2,
+                                                    closest.x + target_size // 2, closest.y + target_size // 2))
                         lightning_cooldown = 20000  # 20 сек
 
                 # Обновление движения животных перед player.move
@@ -1805,6 +1824,29 @@ def main():
                     lightning.draw(screen, camera_x, camera_y)
                 player.draw(screen, camera_x, camera_y)
 
+                # Оверлей для плавного перехода дня и ночи с растушевкой
+                light_intensity = day_night_cycle.get_light_intensity()
+                if light_intensity < 1.0:  # Рисовать оверлей только если не полный день
+                    overlay_alpha = int(255 * (1 - light_intensity))
+                    overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+                    overlay.fill((0, 0, 0, overlay_alpha))  # Базовый черный оверлей
+                    # Растушевка круга света вокруг игрока с шумом для органичности
+                    player_draw_x = int(player.x - camera_x + PLAYER_SIZE // 2)
+                    player_draw_y = int(player.y - camera_y + PLAYER_SIZE // 2)
+                    radius = day_night_cycle.get_visibility_radius()
+                    steps = 30
+                    for i in range(steps):
+                        grad_radius = radius - (i * radius // steps)
+                        if grad_radius > 0:
+                            # Добавляем шум к радиусу для неидеальной формы
+                            noise = int(math.sin(i * 0.2) * 10)  # Фиксированный шум на основе i
+                            grad_radius = max(0, grad_radius + noise)
+                            factor = 1 - i / (steps - 1)
+                            grad_alpha = int(overlay_alpha * (factor ** 3))
+                            pygame.draw.circle(overlay, (50, 50, 50, grad_alpha), (player_draw_x, player_draw_y),
+                                               grad_radius)
+                    screen.blit(overlay, (0, 0))
+
                 # Визуальный таймер cooldown кувырка
                 key = str((player.roll_cooldown + 59) // 60) if player.roll_cooldown > 0 else 'ready'
                 screen.blit(cooldown_sprites[key], (screen_width - 100, 50))
@@ -1815,10 +1857,12 @@ def main():
                     screen.blit(font.render(tool_text, True, BLACK), (10, 10))
                     health_text = f"Здоровье: {player.hp}"
                     screen.blit(font.render(health_text, True, BLACK), (10, 40))
+                    time_text = f"Время: {'День' if day_night_cycle.is_day() else 'Ночь'}"
+                    screen.blit(font.render(time_text, True, BLACK), (10, 70))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
-                    screen.blit(font.render(pos_text, True, BLACK), (10, 70))
+                    screen.blit(font.render(pos_text, True, BLACK), (10, 100))
                     hint_text = font.render("Нажми I для инвентаря\nНажми C для крафта", True, BLACK)
-                    screen.blit(hint_text, (10, 100))
+                    screen.blit(hint_text, (10, 130))
                     player_health_bar.draw(screen)
 
                 # Рисуем меню инвентаря (если открыто)
