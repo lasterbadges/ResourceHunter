@@ -1360,7 +1360,7 @@ def spawn_animal(existing_objects, animal_types):
 
 
 # Spawn enemy (аналогично) - ТОЛЬКО НОЧЬЮ
-def spawn_enemy(existing_objects, is_night):
+def spawn_enemy(existing_objects, is_night=False):
     if not is_night:
         return None  # Не спавнить врагов днем
 
