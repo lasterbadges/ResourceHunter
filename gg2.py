@@ -7,6 +7,9 @@ import math
 
 from healthbar import HealthBar
 from day_night import DayNightCycle
+from enemy import Enemy
+from boss import Boss, Fireball
+from animal import Animal, animal_types, animal_sprites
 
 # Инициализация Pygame
 pygame.init()
@@ -29,6 +32,9 @@ ATTACK_RANGE = 50  # Радиус атаки для врагов
 VISION_RANGE = 200  # Радиус, в котором враг замечает игрока
 BOSS_ATTACK_RANGE = 80  # Радиус атаки для босса
 BOSS_VISION_RANGE = 300  # Радиус нацеливания для босса
+BOSS_SIZE = 80
+
+
 
 # Colors
 GRASS_GREEN = (34, 139, 34)  # Зеленый для травы (fallback)
@@ -49,33 +55,9 @@ font = pygame.font.SysFont(None, 24)
 # Set up the screen
 clock = pygame.time.Clock()
 
-
-# Функции сохранения и загрузки
-def save_game(player, inventory, tools, current_tool):
-    data = {
-        'player_x': player.x,
-        'player_y': player.y,
-        'player_hp': player.hp,
-        'inventory': inventory,
-        'tools': tools,
-        'current_tool': current_tool
-    }
-    with open('save.json', 'w') as f:
-        json.dump(data, f)
-
-
-def load_game():
-    try:
-        with open('save.json', 'r') as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        return None
-
-
 # Загрузка изображений (теперь 5 фреймов: stand + 4 walk)
 def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), filename)
+    filepath = os.path.join(os.getcwd(), 'sprites', filename)
     if os.path.exists(filepath):
         try:
             img = pygame.image.load(filepath).convert_alpha()
@@ -119,121 +101,31 @@ for key in ['stand', 'walk', 'roll']:
         if player_sprites['right'][key] is not None and not player_sprites['left'][key]:
             player_sprites['left'][key] = pygame.transform.flip(player_sprites['right'][key], True, False)
 
-# Список типов животных (добавьте свои: ['cow', 'wolf', 'sheep'] и т.д.)
-animal_types = ['cow', 'wolf', 'sheep']
 
-# Спрайты для животных (по типам)
-animal_sprites = {}
-directions = ['down', 'right', 'up', 'left']
-for animal_type in animal_types:
-    animal_sprites[animal_type] = {}
-    for dir in directions:
-        animal_sprites[animal_type][dir] = {
-            'stand': load_image(f"{animal_type}_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            'walk': [
-                load_image(f"{animal_type}_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                load_image(f"{animal_type}_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                load_image(f"{animal_type}_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                load_image(f"{animal_type}_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-            ]
-        }
-
-# Fallback для left: flip от right, только если right не None
-for animal_type in animal_types:
-    for key in ['stand', 'walk']:
-        if key == 'stand':
-            if animal_sprites[animal_type]['right'][key] is not None:
-                animal_sprites[animal_type]['left'][key] = pygame.transform.flip(
-                    animal_sprites[animal_type]['right'][key], True, False)
-            else:
-                animal_sprites[animal_type]['left'][key] = None
-        elif key == 'walk':
-            animal_sprites[animal_type]['left'][key] = []
-            for i in range(4):
-                if animal_sprites[animal_type]['right'][key][i] is not None:
-                    animal_sprites[animal_type]['left'][key].append(
-                        pygame.transform.flip(animal_sprites[animal_type]['right'][key][i], True, False))
-                else:
-                    animal_sprites[animal_type]['left'][key].append(None)
-
-# Спрайты для врагов
-enemy_sprites = {}
-for dir in directions:
-    enemy_sprites[dir] = {
-        'stand': load_image(f"enemy_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-        'walk': [
-            load_image(f"enemy_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ]
+# Функции сохранения и загрузки
+def save_game(player, inventory, tools, current_tool):
+    data = {
+        'player_x': player.x,
+        'player_y': player.y,
+        'player_hp': player.hp,
+        'inventory': inventory,
+        'tools': tools,
+        'current_tool': current_tool
     }
+    with open('save.json', 'w') as f:
+        json.dump(data, f)
 
-# Fallback для left: flip от right, только если right не None
-for key in ['stand', 'walk']:
-    if key == 'stand':
-        if enemy_sprites['right'][key] is not None:
-            enemy_sprites['left'][key] = pygame.transform.flip(enemy_sprites['right'][key], True, False)
-        else:
-            enemy_sprites['left'][key] = None
-    elif key == 'walk':
-        enemy_sprites['left'][key] = []
-        for i in range(4):
-            if enemy_sprites['right'][key][i] is not None:
-                enemy_sprites['left'][key].append(pygame.transform.flip(enemy_sprites['right'][key][i], True, False))
-            else:
-                enemy_sprites['left'][key].append(None)
 
-# Спрайты для босса
-BOSS_SIZE = 80
-boss_sprites = {}
-for dir in directions:
-    boss_sprites[dir] = {
-        'stand': load_image(f"boss_{dir}_stand.png", (BOSS_SIZE, BOSS_SIZE)),
-        'walk': [
-            load_image(f"boss_{dir}_walk1.png", (BOSS_SIZE, BOSS_SIZE)),
-            load_image(f"boss_{dir}_walk2.png", (BOSS_SIZE, BOSS_SIZE)),
-            load_image(f"boss_{dir}_walk3.png", (BOSS_SIZE, BOSS_SIZE)),
-            load_image(f"boss_{dir}_walk4.png", (BOSS_SIZE, BOSS_SIZE))
-        ]
-    }
+def load_game():
+    try:
+        with open('save.json', 'r') as f:
+            data = json.load(f)
+        return data
+    except FileNotFoundError:
+        return None
 
-# Fallback для left: flip от right, только если right не None
-for key in ['stand', 'walk']:
-    if key == 'stand':
-        if boss_sprites['right'][key] is not None:
-            boss_sprites['left'][key] = pygame.transform.flip(boss_sprites['right'][key], True, False)
-        else:
-            boss_sprites['left'][key] = None
-    elif key == 'walk':
-        boss_sprites['left'][key] = []
-        for i in range(4):
-            if boss_sprites['right'][key][i] is not None:
-                boss_sprites['left'][key].append(pygame.transform.flip(boss_sprites['right'][key][i], True, False))
-            else:
-                boss_sprites['left'][key].append(None)
 
-tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
-rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
 
-# Загрузка текстур фона (3 ваших текстурки, assummed names: grass_tile1.png, grass_tile2.png, grass_tile3.png)
-grass_tiles = [
-    load_image("grass_tile1.png", (TILE_SIZE, TILE_SIZE)),
-    load_image("grass_tile2.png", (TILE_SIZE, TILE_SIZE)),
-    load_image("grass_tile3.png", (TILE_SIZE, TILE_SIZE))
-]
-# Удалить None если не загружено, или fallback
-grass_tiles = [tile for tile in grass_tiles if tile]
-
-# Загрузка изображений животных (расширяемо: список типов)
-# animal_types = ['deer', 'wolf']  # Легко добавить новые, например 'bear'
-# animal_images = {atype: load_image(f"{atype}.png", (PLAYER_SIZE, PLAYER_SIZE)) for atype in animal_types}
-
-# Загрузка изображений врагов
-enemy_img = load_image("enemy.png", (PLAYER_SIZE, PLAYER_SIZE))
-
-# Загрузка текстурки молнии
-lightning_img = load_image("lightning.png", None)
 
 
 # Класс Player с обновлённой анимацией
@@ -369,6 +261,32 @@ class Player:
             screen.blit(text, (draw_x + 5, draw_y + 5))
 
 
+
+tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
+rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
+
+# Загрузка текстур фона (3 ваших текстурки, assummed names: grass_tile1.png, grass_tile2.png, grass_tile3.png)
+grass_tiles = [
+    load_image("grass_tile1.png", (TILE_SIZE, TILE_SIZE)),
+    load_image("grass_tile2.png", (TILE_SIZE, TILE_SIZE)),
+    load_image("grass_tile3.png", (TILE_SIZE, TILE_SIZE))
+]
+# Удалить None если не загружено, или fallback
+grass_tiles = [tile for tile in grass_tiles if tile]
+
+# Загрузка изображений животных (расширяемо: список типов)
+# animal_types = ['deer', 'wolf']  # Легко добавить новые, например 'bear'
+# animal_images = {atype: load_image(f"{atype}.png", (PLAYER_SIZE, PLAYER_SIZE)) for atype in animal_types}
+
+# Загрузка изображений врагов
+enemy_img = load_image("enemy.png", (PLAYER_SIZE, PLAYER_SIZE))
+
+# Загрузка текстурки молнии
+lightning_img = load_image("lightning.png", None)
+
+
+
+
 # Resource class (без изменений)
 class Resource:
     def __init__(self, x, y, type_):
@@ -398,295 +316,8 @@ class Resource:
                 pygame.draw.rect(screen, color, (draw_x, draw_y, RESOURCE_SIZE, RESOURCE_SIZE))
 
 
-# Класс Animal (с типом и анимацией)
-class Animal:
-    def __init__(self, x, y, animal_type):
-        self.x = x
-        self.y = y
-        self.speed = 2
-        self.direction = random.choice(['down', 'right', 'up', 'left'])
-        self.move_timer = 0
-        self.hp = 10  # HP для животных
-        self.type = animal_type  # Тип животного
-        self.is_moving = False
-        self.walk_timer = 0
-        self.walk_frame = 0
-
-    def move(self, resources):
-        prev_x, prev_y = self.x, self.y
-        self.move_timer += 1
-        if self.move_timer >= 60:  # Сменить направление каждые ~1 сек
-            self.direction = random.choice(['down', 'right', 'up', 'left'])
-            self.move_timer = 0
-
-        dx, dy = 0, 0
-        if self.direction == 'left':
-            dx = -self.speed
-        elif self.direction == 'right':
-            dx = self.speed
-        elif self.direction == 'up':
-            dy = -self.speed
-        elif self.direction == 'down':
-            dy = self.speed
-
-        new_x = self.x + dx
-        new_y = self.y + dy
-
-        can_move = True
-        for res in resources:
-            if abs(new_x - res.x) < RESOURCE_SIZE and abs(new_y - res.y) < RESOURCE_SIZE:
-                can_move = False
-                break
-
-        if can_move:
-            self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, new_x))
-            self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, new_y))
-
-        self.is_moving = (self.x != prev_x or self.y != prev_y)
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = animal_sprites[self.type][self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = animal_sprites[self.type][self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            color = (0, 255, 0) if self.type == 'cow' else (128, 128, 128)  # Разные цвета для типов
-            pygame.draw.rect(screen, color, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-
-        # Полоска здоровья
-        bar_width = PLAYER_SIZE
-        bar_height = 5
-        bar_x = draw_x
-        bar_y = draw_y - 10
-        pygame.draw.rect(screen, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = int((self.hp / 10) * bar_width)
-        pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
 
-class Enemy:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.speed = 3
-        self.hp = 30
-        self.damage = 6
-        self.attack_timer = 0
-        self.direction = random.choice(['down', 'right', 'up', 'left'])
-        self.move_timer = 0
-        self.is_moving = False
-        self.walk_timer = 0
-        self.walk_frame = 0
-        self.agro = False  # Флаг АГРО (преследования)
-        self.agro_timer = 0  # Таймер потери АГРО (в кадрах)
-
-    def can_move_to_position(self, new_x, new_y, resources, enemies, player):
-        if (new_x < 0 or new_x > WORLD_WIDTH - PLAYER_SIZE or
-                new_y < 0 or new_y > WORLD_HEIGHT - PLAYER_SIZE):
-            return False
-        if (abs(new_x - player.x) < PLAYER_SIZE and
-                abs(new_y - player.y) < PLAYER_SIZE):
-            return False
-        for enemy in enemies:
-            if enemy != self:
-                if (abs(new_x - enemy.x) < PLAYER_SIZE - 15 and
-                        abs(new_y - enemy.y) < PLAYER_SIZE - 15):
-                    return False
-        return True
-
-    def move_towards_player(self, player_x, player_y, resources, enemies, player, day_night_cycle=None):
-        if day_night_cycle and day_night_cycle.is_day():
-            # Убегать от игрока днем
-            distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
-            if distance > 0:
-                dx = (self.x - player_x) / distance * self.speed
-                dy = (self.y - player_y) / distance * self.speed
-                new_x = self.x + dx
-                new_y = self.y + dy
-                if self.can_move_to_position(new_x, new_y, resources, enemies, player):
-                    self.x = new_x
-                    self.y = new_y
-                    self.is_moving = True
-                    # Определить направление
-                    if dx > 0:
-                        self.direction = 'right'
-                    elif dx < 0:
-                        self.direction = 'left'
-                    elif dy > 0:
-                        self.direction = 'down'
-                    elif dy < 0:
-                        self.direction = 'up'
-                else:
-                    self.is_moving = False
-            self.hp -= 1  # Постепенная смерть днем
-            if self.hp <= 0:
-                pass  # Удаление в main
-            return
-
-        distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
-        prev_x, prev_y = self.x, self.y
-
-        # Проверка на активацию/потерю АГРО
-        if distance <= VISION_RANGE:
-            self.agro = True
-            self.agro_timer = 300  # Сброс таймера (~5 сек при 60 FPS)
-        elif self.agro:
-            self.agro_timer -= 1
-            if self.agro_timer <= 0:
-                self.agro = False
-
-        if not self.agro:
-            # Случайное движение, как у Animal (когда АГРО потеряна)
-            self.move_randomly(resources, enemies, player)
-            return
-
-        # Преследование, если АГРО активно
-        if distance <= ATTACK_RANGE:
-            self.is_moving = False
-            self.walk_frame = 0
-            return
-
-        dx = max(-self.speed, min(self.speed, player_x - self.x))
-        dy = max(-self.speed, min(self.speed, player_y - self.y))
-        new_x = self.x + dx
-        new_y = self.y + dy
-
-        if self.can_move_to_position(new_x, new_y, resources, enemies, player):
-            self.x = new_x
-            self.y = new_y
-            self.is_moving = True
-        else:
-            self.is_moving = False
-
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
-
-        # Определение направления на основе движения
-        if self.x > prev_x:
-            self.direction = 'right'
-        elif self.x < prev_x:
-            self.direction = 'left'
-        elif self.y > prev_y:
-            self.direction = 'down'
-        elif self.y < prev_y:
-            self.direction = 'up'
-
-    def move_randomly(self, resources, enemies, player):
-        # Случайное блуждание (аналогично Animal.move, но без взаимодействия с ресурсами для простоты)
-        prev_x, prev_y = self.x, self.y
-        self.move_timer += 1
-        if self.move_timer >= 60:  # Смена направления ~1 раз в сек
-            self.direction = random.choice(['down', 'right', 'up', 'left'])
-            self.move_timer = 0
-
-        dx, dy = 0, 0
-        if self.direction == 'left':
-            dx = -self.speed
-        elif self.direction == 'right':
-            dx = self.speed
-        elif self.direction == 'up':
-            dy = -self.speed
-        elif self.direction == 'down':
-            dy = self.speed
-
-        new_x = self.x + dx
-        new_y = self.y + dy
-
-        if self.can_move_to_position(new_x, new_y, resources, enemies, player):
-            self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, new_x))
-            self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, new_y))
-
-        self.is_moving = (self.x != prev_x or self.y != prev_y)
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:  # Скорость анимации
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
-
-    def attack_player(self, player, dt, player_health_bar):
-        if not self.agro:
-            return  # Не атакуем, если нет АГРО
-        distance = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
-        if distance <= ATTACK_RANGE and self.attack_timer <= 0:
-            player.hp -= self.damage  # Предполагаем player.hp; замените на player.health если нужно
-            player_health_bar.take_damage(self.damage)
-            self.attack_timer = 120
-        elif self.attack_timer > 0:
-            self.attack_timer -= 1
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = enemy_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = enemy_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, (255, 0, 0), (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-
-        # Полоска здоровья
-        bar_width = PLAYER_SIZE
-        bar_height = 5
-        bar_x = draw_x
-        bar_y = draw_y - 10
-        pygame.draw.rect(screen, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = int((self.hp / 30) * bar_width)
-        pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
-
-
-class Fireball:
-    def __init__(self, x, y, target_x, target_y, speed=8):
-        self.x = x
-        self.y = y
-        dx = target_x - x
-        dy = target_y - y
-        dist = (dx ** 2 + dy ** 2) ** 0.5
-        if dist > 0:
-            self.dx = dx / dist * speed
-            self.dy = dy / dist * speed
-        else:
-            self.dx = 0
-            self.dy = 0
-        self.size = 20
-        self.lifetime = 300  # 5 секунд при 60 FPS
-        self.timer = 0
-
-    def move(self):
-        self.x = int(self.x + self.dx)
-        self.y = int(self.y + self.dy)
-        self.timer += 1
-
-    def is_expired(self):
-        return self.timer > self.lifetime
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-        pygame.draw.circle(screen, (255, 100, 0), (int(draw_x + self.size // 2), int(draw_y + self.size // 2)),
-                           self.size // 2)
 
 
 class Lightning:
@@ -723,216 +354,6 @@ class Lightning:
             pygame.draw.rect(screen, (255, 255, 0), (mid_x - camera_x, mid_y - camera_y, 15, 50))
 
 
-class Boss:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.size = BOSS_SIZE
-        self.speed = 1.5
-        self.hp = 500
-        self.damage = 10
-        self.push_damage = 0  # Отталкивание не убирает HP, но толкает
-        self.attack_timer = 0
-        self.push_timer = 0
-        self.ranged_timer = 0
-        self.aiming = False
-        self.aim_start_time = 0
-        self.direction = random.choice(['down', 'right', 'up', 'left'])
-        self.move_timer = 0
-        self.is_moving = False
-        self.walk_timer = 0
-        self.walk_frame = 0
-        self.agro = False
-        self.agro_timer = 0
-        self.attack_range = BOSS_ATTACK_RANGE
-        self.vision_range = BOSS_VISION_RANGE
-
-    def can_move_to_position(self, new_x, new_y, resources, enemies, player, bosses):
-        if (new_x < 0 or new_x > WORLD_WIDTH - self.size or
-                new_y < 0 or new_y > WORLD_HEIGHT - self.size):
-            return False
-        if (abs(new_x - player.x) < self.size and
-                abs(new_y - player.y) < self.size):
-            return False
-        for enemy in enemies:
-            if (abs(new_x - enemy.x) < self.size and
-                    abs(new_y - enemy.y) < self.size):
-                return False
-        for boss in bosses:
-            if boss != self:
-                if (abs(new_x - boss.x) < self.size and
-                        abs(new_y - boss.y) < self.size):
-                    return False
-        for res in resources:
-            if abs(new_x - res.x) < RESOURCE_SIZE and abs(new_y - res.y) < RESOURCE_SIZE:
-                return False
-        return True
-
-    def move_towards_player(self, player_x, player_y, resources, enemies, player, bosses):
-        distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
-        prev_x, prev_y = self.x, self.y
-
-        # Проверка на активацию/потерю АГРО
-        if distance <= self.vision_range:
-            self.agro = True
-            self.agro_timer = 300  # Сброс таймера (~5 сек при 60 FPS)
-        elif self.agro:
-            self.agro_timer -= 1
-            if self.agro_timer <= 0:
-                self.agro = False
-
-        if not self.agro:
-            # Случайное движение
-            self.move_randomly(resources, enemies, player, bosses)
-            return
-
-        # Преследование
-        if distance <= self.attack_range:
-            self.is_moving = False
-            self.walk_frame = 0
-            return
-
-        dx = max(-self.speed, min(self.speed, player_x - self.x))
-        dy = max(-self.speed, min(self.speed, player_y - self.y))
-        new_x = self.x + dx
-        new_y = self.y + dy
-
-        if self.can_move_to_position(new_x, new_y, resources, enemies, player, bosses):
-            self.x = int(new_x)
-            self.y = int(new_y)
-            self.is_moving = True
-        else:
-            self.is_moving = False
-
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
-
-        # Определение направления
-        if self.x > prev_x:
-            self.direction = 'right'
-        elif self.x < prev_x:
-            self.direction = 'left'
-        elif self.y > prev_y:
-            self.direction = 'down'
-        elif self.y < prev_y:
-            self.direction = 'up'
-
-    def move_randomly(self, resources, enemies, player, bosses):
-        prev_x, prev_y = self.x, self.y
-        self.move_timer += 1
-        if self.move_timer >= 60:
-            self.direction = random.choice(['down', 'right', 'up', 'left'])
-            self.move_timer = 0
-
-        dx, dy = 0, 0
-        if self.direction == 'left':
-            dx = -self.speed
-        elif self.direction == 'right':
-            dx = self.speed
-        elif self.direction == 'up':
-            dy = -self.speed
-        elif self.direction == 'down':
-            dy = self.speed
-
-        new_x = self.x + dx
-        new_y = self.y + dy
-
-        if self.can_move_to_position(new_x, new_y, resources, enemies, player, bosses):
-            self.x = max(0, min(WORLD_WIDTH - self.size, int(new_x)))
-            self.y = max(0, min(WORLD_HEIGHT - self.size, int(new_y)))
-
-        self.is_moving = (self.x != prev_x or self.y != prev_y)
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
-
-    def attack_player(self, player, dt, fireballs):
-        if not self.agro:
-            return
-        distance = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
-
-        # Базовая атака вблизи
-        if distance <= self.attack_range and self.attack_timer <= 0:
-            player.hp -= self.damage
-            self.attack_timer = 120  # 2 сек cooldown
-        elif self.attack_timer > 0:
-            self.attack_timer -= 1
-
-        # Отталкивание
-        if distance <= self.attack_range + 20 and self.push_timer <= 0:
-            # Толкаем игрока назад с кувырком
-            dx = player.x - self.x
-            dy = player.y - self.y
-            dist = (dx ** 2 + dy ** 2) ** 0.5
-            if dist > 0:
-                player.dirx = dx / dist
-                player.diry = dy / dist
-                # Установить направление для анимации
-                if abs(player.dirx) > abs(player.diry):
-                    player.direction = 'right' if player.dirx > 0 else 'left'
-                else:
-                    player.direction = 'down' if player.diry > 0 else 'up'
-                player.is_rolling = True
-                player.roll_timer = 0
-                player.roll_frame = 0
-                player.roll_duration = 0
-            self.push_timer = 300  # 5 сек cooldown
-
-        elif self.push_timer > 0:
-            self.push_timer -= 1
-
-        # Дальняя атака
-        if distance > self.attack_range and distance <= self.vision_range and self.ranged_timer <= 0:
-            self.aiming = True
-            self.aim_start_time = pygame.time.get_ticks()
-            self.ranged_timer = 600  # 10 сек cooldown
-        elif self.aiming:
-            current_time = pygame.time.get_ticks()
-            if current_time - self.aim_start_time >= 1500:  # 1.5 сек
-                # Выпустить fireball
-                fireball = Fireball(self.x + self.size // 2, self.y + self.size // 2, player.x + PLAYER_SIZE // 2,
-                                    player.y + PLAYER_SIZE // 2)
-                fireballs.append(fireball)
-                self.aiming = False
-        elif self.ranged_timer > 0:
-            self.ranged_timer -= 1
-
-    def draw(self, screen, camera_x, camera_y, player):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = boss_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = boss_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, (255, 0, 255), (draw_x, draw_y, self.size, self.size))  # Пурпурный для босса
-
-        # Полоска здоровья
-        bar_width = self.size
-        bar_height = 5
-        bar_x = draw_x
-        bar_y = draw_y - 10
-        pygame.draw.rect(screen, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = int((self.hp / 500) * bar_width)
-        pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
-
-        # Полоска прицеливания
-        if self.aiming:
-            pygame.draw.line(screen, (255, 255, 0), (draw_x + self.size // 2, draw_y + self.size // 2),
-                             (player.x - camera_x + PLAYER_SIZE // 2, player.y - camera_y + PLAYER_SIZE // 2), 3)
 
 
 button_width = 376
@@ -984,13 +405,13 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
     screen.blit(overlay, (0, 0))
 
     # Заголовок игры
-    title_text = pygame.image.load("logo2.png").convert_alpha()
+    title_text = load_image("logo2.png", None)
     screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 300))
 
     # Кнопки меню
     def ButtonMenuDrawer(name: str, Num: int = 0):
         start_button = pygame.Rect(button_x, screen_height // 3 + 105 * Num, button_width, button_height)
-        start_button_image = pygame.image.load(name).convert_alpha()
+        start_button_image = load_image(name, None)
         screen.blit(start_button_image, start_button)
 
     # Start Game button
@@ -1526,11 +947,8 @@ def main():
 
     try:
         # Attempt to load and scale the images
-        temp_fill = pygame.image.load('progressbar1.png').convert_alpha()
-        temp_frame = pygame.image.load('progressbar2.png').convert_alpha()
-
-        loaded_fill_img = pygame.transform.scale(temp_fill, (BAR_WIDTH, BAR_HEIGHT))
-        loaded_frame_img = pygame.transform.scale(temp_frame, (BAR_WIDTH, BAR_HEIGHT))
+        loaded_fill_img = load_image('progressbar1.png', (BAR_WIDTH, BAR_HEIGHT))
+        loaded_frame_img = load_image('progressbar2.png', (BAR_WIDTH, BAR_HEIGHT))
 
         print("Изображения полосы здоровья успешно загружены.")
     except pygame.error as e:
