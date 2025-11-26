@@ -1361,8 +1361,6 @@ def spawn_animal(existing_objects, animal_types):
 
 # Spawn enemy (аналогично) - ТОЛЬКО НОЧЬЮ
 def spawn_enemy(existing_objects, is_night=False):
-    if not is_night:
-        return None  # Не спавнить врагов днем
 
     attempts = 100
     for _ in range(attempts):
@@ -1717,7 +1715,7 @@ def main():
     # Создаем поверхность для затемнения один раз
     daynight_overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
     # ====== КОНЕЦ ДОБАВЛЕНИЯ ======
-
+    f = 1
     running = True
     while running:
         # Музыка
