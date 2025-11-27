@@ -406,7 +406,11 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
 
     # Заголовок игры
     title_text = load_image("logo2.png", None)
-    screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 300))
+    if title_text:
+        screen.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, screen_height // 2 - 300))
+    else:
+        fallback_text = font.render("Survival Game", True, WHITE)
+        screen.blit(fallback_text, (screen_width // 2 - fallback_text.get_width() // 2, screen_height // 2 - 300))
 
     # Кнопки меню
     def ButtonMenuDrawer(name: str, Num: int = 0):
@@ -1290,30 +1294,30 @@ def main():
                     fireball.draw(screen, camera_x, camera_y)
                 for lightning in lightnings:
                     lightning.draw(screen, camera_x, camera_y)
+
                 player.draw(screen, camera_x, camera_y)
 
                 # Оверлей для плавного перехода дня и ночи с растушевкой
                 light_intensity = day_night_cycle.get_light_intensity()
-                if light_intensity < 1.0:  # Рисовать оверлей только если не полный день
-                    overlay_alpha = int(255 * (1 - light_intensity))
-                    overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-                    overlay.fill((0, 0, 0, overlay_alpha))  # Базовый черный оверлей
-                    # Растушевка круга света вокруг игрока с шумом для органичности
-                    player_draw_x = int(player.x - camera_x + PLAYER_SIZE // 2)
-                    player_draw_y = int(player.y - camera_y + PLAYER_SIZE // 2)
-                    radius = day_night_cycle.get_visibility_radius()
-                    steps = 30
-                    for i in range(steps):
-                        grad_radius = radius - (i * radius // steps)
-                        if grad_radius > 0:
-                            # Добавляем шум к радиусу для неидеальной формы
-                            noise = int(math.sin(i * 0.2) * 10)  # Фиксированный шум на основе i
-                            grad_radius = max(0, grad_radius + noise)
-                            factor = 1 - i / (steps - 1)
-                            grad_alpha = int(overlay_alpha * (factor ** 3))
-                            pygame.draw.circle(overlay, (50, 50, 50, grad_alpha), (player_draw_x, player_draw_y),
-                                               grad_radius)
-                    screen.blit(overlay, (0, 0))
+                if light_intensity < 188888:  # Рисовать оверлей только если не полный день
+                    darkness = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+                    darkness.fill((0, 0, 0, 240))
+
+                    def create_circle_mask(radius):
+                        size = radius * 2
+                        mask = pygame.Surface((size, size), pygame.SRCALPHA)
+
+                        # Создаем градиент от центра к краям
+                        for r in range(radius, 0, -1):
+                            alpha = 230 - int(230 * (r / radius))
+                            pygame.draw.circle(mask, (255, 128, 128, alpha), (radius, radius), r)
+
+                        return mask
+
+                    small_mask = create_circle_mask(150)
+                    current_mask = small_mask
+                    darkness.blit(current_mask,(player.x + PLAYER_SIZE//2 - camera_x - current_mask.get_width()//2, player.y + PLAYER_SIZE//2 - camera_y - current_mask.get_height()//2), special_flags=pygame.BLEND_RGBA_SUB)
+                    screen.blit(darkness, (0, 0))
 
                 # Визуальный таймер cooldown кувырка
                 key = str((player.roll_cooldown + 59) // 60) if player.roll_cooldown > 0 else 'ready'
