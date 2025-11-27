@@ -1334,11 +1334,8 @@ def spawn_animal(existing_objects, animal_types):
     return Animal(x, y, animal_type)
 
 
-# Spawn enemy (аналогично) - ТОЛЬКО НОЧЬЮ
-def spawn_enemy(existing_objects, is_night):
-    if not is_night:
-        return None  # Не спавнить врагов днем
-
+# Spawn enemy (аналогично) - ВСЕГДА
+def spawn_enemy(existing_objects):
     attempts = 100
     for _ in range(attempts):
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
@@ -1602,8 +1599,12 @@ def main():
         new_animal = spawn_animal(resources + animals, animal_types)
         animals.append(new_animal)
 
-    # Спавн врагов (изначально пустой, будут спавниться только ночью)
+    # Спавн врагов (всегда)
     enemies = []
+    for _ in range(5):  # 5 врагов
+        new_enemy = spawn_enemy(resources + animals + enemies)
+        if new_enemy:
+            enemies.append(new_enemy)
 
     # Спавн босса
     bosses = []
@@ -1620,33 +1621,7 @@ def main():
 
     last_time = pygame.time.get_ticks()
 
-    # ====== НАЧАЛО ДОБАВЛЕНИЯ: переменные системы дня/ночи (с плавным переходом и симметричным фейдом) ======
-    # Длительности в миллисекундах
-    day_length = 90_000  # 1.5 минуты = 90 секунд
-    night_length = 60_000  # 60 секунд (увеличено с 40_000)
-    # Времена плавного затемнения/осветления (в мс)
-    day_fade_duration = 5000  # последние 5 секунд дня затемнение до ~20%
-    night_fade_duration = 5000  # плавное убирание ночного затемнения (день появляется плавно)
-    # Таймер цикла (сбрасывается при смене фаз)
-    cycle_timer = 0
-    is_night = False
-    # Флаги переходов
-    transitioning_to_day = False
-    transitioning_to_day_timer = 0
-    # Текущий альфа-канал затемнения (0..255)
-    overlay_alpha = 0
-    # Уведомления
-    notification_text = ""
-    notification_timer = 0
-    notification_duration = 3000  # показать уведомление 3 секунды
-    # Флаг, чтобы при запуске игры не показывать уведомление
-    first_cycle = True
-    # Предвычисленные значения
-    ALPHA_DAY_END = int(255 * 0.2)  # ~20%
-    ALPHA_NIGHT_PEAK = int(255 * 0.93)  # ~93% для очень темной ночи
-    # Создаем поверхность для затемнения один раз
-    daynight_overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-    # ====== КОНЕЦ ДОБАВЛЕНИЯ ======
+    # ====== УДАЛЕНА СИСТЕМА ДНЯ/НОЧИ ======
 
     running = True
     while running:
@@ -1721,83 +1696,7 @@ def main():
                 dt = current_time - last_time
                 last_time = current_time
 
-                # ====== НАЧАЛО: обновление системы дня/ночи с симметричным фейдом ======
-                cycle_timer += dt
-                if transitioning_to_day:
-                    # Плавное снятие ночного затемнения
-                    transitioning_to_day_timer += dt
-                    t = min(1.0, transitioning_to_day_timer / night_fade_duration)
-                    overlay_alpha = int(ALPHA_NIGHT_PEAK * (1.0 - t))
-                    if transitioning_to_day_timer >= night_fade_duration:
-                        transitioning_to_day = False
-                        transitioning_to_day_timer = 0
-                        overlay_alpha = 0
-                else:
-                    if not is_night:
-                        # День: если в последние day_fade_duration мс, начинаем затемнять до ALPHA_DAY_END
-                        if cycle_timer >= max(0, day_length - day_fade_duration):
-                            t = (cycle_timer - (day_length - day_fade_duration)) / max(1, day_fade_duration)
-                            t = min(max(t, 0.0), 1.0)
-                            overlay_alpha = int(ALPHA_DAY_END * t)
-                        else:
-                            overlay_alpha = 0
-
-                        # Переход к ночи
-                        if cycle_timer >= day_length:
-                            # Начинается ночь
-                            is_night = True
-                            cycle_timer = 0
-                            # Показ уведомления если это не момент запуска игры
-                            if not first_cycle:
-                                notification_text = "Началась ночь"
-                                notification_timer = notification_duration
-                            if first_cycle:
-                                first_cycle = False
-                            overlay_alpha = ALPHA_DAY_END  # старт ночи с небольшой затемнённости
-                    else:
-                        # Ночной период: быстрое затемнение до пика, затем долгое ослабление
-                        fade_in_duration = night_length * 0.2  # 20% ночи на затемнение
-                        peak_duration = night_length * 0.6  # 60% ночи на пик темноты
-                        fade_out_duration = night_length * 0.2  # 20% ночи на осветление
-
-                        if cycle_timer <= fade_in_duration:
-                            # Быстрое затемнение до пика
-                            t = cycle_timer / max(1, fade_in_duration)
-                            overlay_alpha = int(ALPHA_DAY_END + (ALPHA_NIGHT_PEAK - ALPHA_DAY_END) * t)
-                        elif cycle_timer <= fade_in_duration + peak_duration:
-                            # Долгий пик темноты
-                            overlay_alpha = ALPHA_NIGHT_PEAK
-                        else:
-                            # Плавное осветление
-                            t = (cycle_timer - (fade_in_duration + peak_duration)) / max(1, fade_out_duration)
-                            t = min(max(t, 0.0), 1.0)
-                            overlay_alpha = int(ALPHA_NIGHT_PEAK + (0 - ALPHA_NIGHT_PEAK) * t)
-                            overlay_alpha = max(0, overlay_alpha)
-
-                        if cycle_timer >= night_length:
-                            # Начинается день — но делаем плавный переход
-                            is_night = False
-                            cycle_timer = 0
-                            # Установим флаг перехода — плавно убираем ночное затемнение
-                            transitioning_to_day = True
-                            transitioning_to_day_timer = 0
-                            if not first_cycle:
-                                notification_text = "Начался день"
-                                notification_timer = notification_duration
-                            if first_cycle:
-                                first_cycle = False
-
-                # Уменьшаем таймер уведомления
-                if notification_timer > 0:
-                    notification_timer -= dt
-                    if notification_timer <= 0:
-                        notification_text = ""
-                        notification_timer = 0
-
-                # Обновляем поверхность overlay если размер экрана изменился
-                if daynight_overlay.get_size() != (screen_width, screen_height):
-                    daynight_overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-                # ====== КОНЕЦ: системы дня/ночи ======
+                # ====== УДАЛЕНА СИСТЕМА ДНЯ/НОЧИ ======
 
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
@@ -1949,7 +1848,7 @@ def main():
                             elif isinstance(closest, Enemy):
                                 inventory['meat'] += 1
                                 enemies.remove(closest)
-                                new_enemy = spawn_enemy(resources + animals + enemies, is_night)
+                                new_enemy = spawn_enemy(resources + animals + enemies)
                                 if new_enemy:
                                     enemies.append(new_enemy)
                             elif isinstance(closest, Boss):
@@ -1961,26 +1860,28 @@ def main():
 
                 # РАЗМЕЩЕНИЕ И ИНТЕРАКЦИЯ С ВЕРСТАКОМ / СТРОЙКАМИ
                 # Нажать B — поставить выбранный placeable (универсально)
-                if keys[pygame.K_b]:
-                    # защитимся от спама
-                    pygame.time.wait(120)
+                if keys[pygame.K_b] and space_cooldown <= 0:  # ИСПРАВЛЕНИЕ: добавлен cooldown
                     selected = current_tool
                     # Если выбран placeable и есть в инвентаре — ставим его
                     if selected == 'workbench' and inventory.get('workbench', 0) > 0:
                         placed_workbenches.append(Workbench(player.x, player.y))
                         inventory['workbench'] -= 1
+                        space_cooldown = 200  # Установить cooldown
                         print("Верстак поставлен (B).")
                     elif selected == 'campfire_item' and inventory.get('campfire_item', 0) > 0:
                         placed_campfires.append(Campfire(player.x, player.y))
                         inventory['campfire_item'] -= 1
+                        space_cooldown = 200  # Установить cooldown
                         print("Костёр поставлен (B).")
                     elif selected == 'tent_item' and inventory.get('tent_item', 0) > 0:
                         placed_tents.append(Tent(player.x, player.y))
                         inventory['tent_item'] -= 1
+                        space_cooldown = 200  # Установить cooldown
                         print("Палатка поставлена (B).")
                     elif selected == 'trap_item' and inventory.get('trap_item', 0) > 0:
                         placed_traps.append(Trap(player.x, player.y))
                         inventory['trap_item'] -= 1
+                        space_cooldown = 200  # Установить cooldown
                         print("Капкан поставлен (B).")
 
                 # Взаимодействие E: если рядом с верстаком — открыть меню верстака/строительства
@@ -2029,7 +1930,6 @@ def main():
                                 (campfire_button.x + 5, campfire_button.y + 8))
                     screen.blit(font.render("Капкан (4д,2к)", True, BLACK), (trap_button.x + 5, trap_button.y + 8))
 
-                    # Обработка кликов мышью для верстака
                     # Обработка кликов мышью для верстака
                     if pygame.mouse.get_pressed()[0]:
                         mx, my = pygame.mouse.get_pos()
@@ -2187,7 +2087,6 @@ def main():
                                 break
                     if removed_any:
                         space_cooldown = 400  # небольшая пауза
-                        pygame.time.wait(120)
 
                 # Gathering logic для ресурсов (обновлено: проверка cooldown и устранение wait)
                 for res in resources[:]:
@@ -2204,7 +2103,6 @@ def main():
                             new_res = spawn_resource(resources)
                             resources.append(new_res)
                             print(f"DEBUG: Собрано {res.type}! Новый ресурс заспавнен с проверкой расстояния!")
-                        # **Удалено: pygame.time.wait(200)**
                         space_cooldown = 200  # **Новое: устанавливаем 1-секундный cooldown**
 
                 # Gathering logic для животных (обновлено аналогично)
@@ -2221,7 +2119,6 @@ def main():
                             new_animal = spawn_animal(resources + animals, animal_types)
                             animals.append(new_animal)
                             print(f"DEBUG: {animal.type} убито! Food +1")
-                            # **Удалено: pygame.time.wait(200)**
                         space_cooldown = 200  # **Новое: 1-секундный cooldown**
 
                 # Gathering logic для врагов (обновлено аналогично)
@@ -2234,11 +2131,10 @@ def main():
                         if enemy.hp <= 0:
                             inventory['meat'] += 1
                             enemies.remove(enemy)
-                            new_enemy = spawn_enemy(resources + animals + enemies, is_night)
+                            new_enemy = spawn_enemy(resources + animals + enemies)
                             if new_enemy:
                                 enemies.append(new_enemy)
                             print("DEBUG: Враг убит! Meat +1")
-                            # **Удалено: pygame.time.wait(200)**
                         space_cooldown = 200  # **Новое: 1-секундный cooldown**
 
                 # Gathering logic для боссов
@@ -2265,21 +2161,8 @@ def main():
                         space_cooldown = 200
                         break
 
-                # ====== СПАВН ВРАГОВ ТОЛЬКО НОЧЬЮ ======
-                if is_night and len(enemies) < 5:  # Максимум 5 врагов ночью
-                    # Шанс спавна врага каждую секунду
-                    if random.random() < 0.01:  # 1% шанс каждую секунду
-                        new_enemy = spawn_enemy(
-                            resources + animals + enemies + placed_workbenches + placed_tents + placed_campfires + placed_traps,
-                            is_night)
-                        if new_enemy:
-                            enemies.append(new_enemy)
-                            print("Новый враг заспавнен ночью!")
-
-                # Удаление врагов с наступлением дня
-                if not is_night and enemies:
-                    enemies.clear()
-                    print("Все враги исчезли с наступлением дня!")
+                # ====== УДАЛЕН СПАВН ВРАГОВ ПО НОЧАМ ======
+                # Враги теперь всегда присутствуют в игре
 
                 # Рисуем мир
                 for res in resources:
@@ -2313,7 +2196,7 @@ def main():
 
                 # ====== РИСУЕМ КОСТРЫ ПОСЛЕ ВСЕХ ОБЪЕКТОВ НО ПЕРЕД ИГРОКОМ ======
                 for cf in placed_campfires:
-                    cf.draw(screen, camera_x, camera_y, is_night)
+                    cf.draw(screen, camera_x, camera_y, False)
                     # Если игрок рядом — восстанавливаем здоровье медленно
                     dist_cf = ((player.x - cf.x) ** 2 + (player.y - cf.y) ** 2) ** 0.5
                     if dist_cf <= cf.light_radius // 2:
@@ -2324,20 +2207,14 @@ def main():
                 player.draw(screen, camera_x, camera_y)
 
                 # ====== НАЧАЛО: взаимодействие с палаткой и костром ======
-                # Использование палатки ночью (E рядом с палаткой)
+                # Использование палатки (E рядом с палаткой) - УДАЛЕНА ПРОВЕРКА НА НОЧЬ
                 if keys[pygame.K_e]:
                     for idx, tent in enumerate(placed_tents):
                         dist_t = ((player.x - tent.x) ** 2 + (player.y - tent.y) ** 2) ** 0.5
-                        if dist_t <= 80 and is_night:
-                            # Пропустить ночь: начинаем плавный переход к дню
-                            is_night = False
-                            cycle_timer = 0
-                            transitioning_to_day = True
-                            transitioning_to_day_timer = 0
-                            notification_text = "Начался день"
-                            notification_timer = notification_duration
+                        if dist_t <= 80:
+                            # Пропустить ночь: мгновенно начинается день
                             workbench_menu_open = False
-                            print("Ночь пережита в палатке. Начался день (плавно).")
+                            print("Использована палатка.")
                             break
 
                 # Готовка мяса на костре (H рядом с костром)
@@ -2394,27 +2271,7 @@ def main():
         elif game_state == 'game_over':
             draw_game_over()
 
-        # ====== НАЧАЛО ДОБАВЛЕНИЯ: отрисовка затемнения и уведомлений ======
-        # (помещено сюда, чтобы overlay всегда рисовался поверх кадра)
-        if 'overlay_alpha' in locals() and overlay_alpha > 0:
-            # Обновляем поверхность и заливаем черным с текущим альфа
-            daynight_overlay.fill((0, 0, 0, max(0, min(255, int(overlay_alpha)))))
-            screen.blit(daynight_overlay, (0, 0))
-
-        # ====== РИСУЕМ СВЕТ ОТ КОСТРОВ ПОСЛЕ ЗАТЕМНЕНИЯ ======
-        for cf in placed_campfires:
-            cf.draw_light(screen, camera_x, camera_y, is_night)
-
-        # Рисуем уведомление вверху центра экрана, если есть
-        if 'notification_text' in locals() and notification_text:
-            notif = font.render(notification_text, True, WHITE)
-            notif_bg = pygame.Surface((notif.get_width() + 20, notif.get_height() + 10), pygame.SRCALPHA)
-            notif_bg.fill((0, 0, 0, 180))
-            nx = screen_width // 2 - notif_bg.get_width() // 2
-            ny = 20
-            screen.blit(notif_bg, (nx, ny))
-            screen.blit(notif, (nx + 10, ny + 5))
-        # ====== КОНЕЦ ДОБАВЛЕНИЯ ======
+        # ====== УДАЛЕНА СИСТЕМА ЗАТЕМНЕНИЯ И УВЕДОМЛЕНИЙ ======
 
         pygame.display.flip()
         clock.tick(60)
