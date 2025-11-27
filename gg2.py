@@ -33,6 +33,10 @@ VISION_RANGE = 200  # Радиус, в котором враг замечает 
 BOSS_ATTACK_RANGE = 80  # Радиус атаки для босса
 BOSS_VISION_RANGE = 300  # Радиус нацеливания для босса
 BOSS_SIZE = 80
+PUSHBACK_RANGE = 120  # Радиус атаки отталкивания
+PUSHBACK_DAMAGE = 5  # Урон от отталкивания
+PUSHBACK_FORCE = 15  # Сила отталкивания
+PUSHBACK_COOLDOWN = 15000  # Перезарядка отталкивания (15 секунд)
 
 
 
@@ -110,7 +114,8 @@ def save_game(player, inventory, tools, current_tool):
         'player_hp': player.hp,
         'inventory': inventory,
         'tools': tools,
-        'current_tool': current_tool
+        'current_tool': current_tool,
+        'pushback_cooldown': player.pushback_cooldown
     }
     with open('save.json', 'w') as f:
         json.dump(data, f)
@@ -138,6 +143,9 @@ class Player:
         self.dirx = 0
         self.diry = 0
         self.hp = 100
+        self.mana = 100  # Текущая мана
+        self.max_mana = 100  # Максимальная мана
+        self.mana_regen_rate = 10 / 60000  # 10 маны в минуту (в миллисекундах)
         self.hunger_timer = 0  # Таймер голода
         self.direction = 'down'
         self.is_moving = False
@@ -148,6 +156,7 @@ class Player:
         self.roll_frame = 0
         self.roll_duration = 0
         self.roll_cooldown = 0
+        self.pushback_cooldown = 0
         self.push_vx = 0
         self.push_vy = 0
 
@@ -241,6 +250,80 @@ class Player:
             self.roll_timer = 0
             self.roll_frame = 0
             self.roll_cooldown = 240
+
+    def pushback(self, enemies, animals, bosses, pushback_waves, inventory, resources, day_night_cycle):
+        if self.pushback_cooldown > 0:
+            return
+        self.pushback_cooldown = PUSHBACK_COOLDOWN
+        player_center_x = self.x + PLAYER_SIZE // 2
+        player_center_y = self.y + PLAYER_SIZE // 2
+        
+        # Создаём визуальный эффект
+        pushback_waves.append(PushbackWave(player_center_x, player_center_y))
+        
+        # Отталкиваем врагов (не боссов)
+        for enemy in enemies[:]:
+            enemy_center_x = enemy.x + PLAYER_SIZE // 2
+            enemy_center_y = enemy.y + PLAYER_SIZE // 2
+            dx = enemy_center_x - player_center_x
+            dy = enemy_center_y - player_center_y
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+            
+            if dist < PUSHBACK_RANGE and dist > 0:
+                # Нормализуем направление и отталкиваем
+                push_dx = (dx / dist) * PUSHBACK_FORCE * 5
+                push_dy = (dy / dist) * PUSHBACK_FORCE * 5
+                enemy.x = int(enemy.x + push_dx)
+                enemy.y = int(enemy.y + push_dy)
+                # Ограничиваем в пределах мира
+                enemy.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, enemy.x))
+                enemy.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, enemy.y))
+                # Наносим урон
+                enemy.hp -= PUSHBACK_DAMAGE
+                if enemy.hp <= 0:
+                    inventory['meat'] += 1
+                    enemies.remove(enemy)
+                    new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                    if new_enemy:
+                        enemies.append(new_enemy)
+        
+        # Отталкиваем животных
+        for animal in animals[:]:
+            animal_center_x = animal.x + PLAYER_SIZE // 2
+            animal_center_y = animal.y + PLAYER_SIZE // 2
+            dx = animal_center_x - player_center_x
+            dy = animal_center_y - player_center_y
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+            
+            if dist < PUSHBACK_RANGE and dist > 0:
+                # Нормализуем направление и отталкиваем
+                push_dx = (dx / dist) * PUSHBACK_FORCE * 5
+                push_dy = (dy / dist) * PUSHBACK_FORCE * 5
+                animal.x = int(animal.x + push_dx)
+                animal.y = int(animal.y + push_dy)
+                # Ограничиваем в пределах мира
+                animal.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, animal.x))
+                animal.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, animal.y))
+                # Наносим урон
+                animal.hp -= PUSHBACK_DAMAGE
+                if animal.hp <= 0:
+                    inventory['food'] += 1
+                    animals.remove(animal)
+                    new_animal = spawn_animal(resources + animals, animal_types)
+                    animals.append(new_animal)
+        
+        # Боссы НЕ отталкиваются, но получают урон если в радиусе
+        for boss in bosses:
+            boss_center_x = boss.x + boss.size // 2
+            boss_center_y = boss.y + boss.size // 2
+            dx = boss_center_x - player_center_x
+            dy = boss_center_y - player_center_y
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+            
+            if dist < PUSHBACK_RANGE:
+                boss.hp -= PUSHBACK_DAMAGE
+        
+        print("Отталкивание активировано!")
 
     def draw(self, screen, camera_x, camera_y):
         draw_x = self.x - camera_x
@@ -354,6 +437,37 @@ class Lightning:
             pygame.draw.rect(screen, (255, 255, 0), (mid_x - camera_x, mid_y - camera_y, 15, 50))
 
 
+
+
+# Класс для визуального эффекта отталкивания
+class PushbackWave:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.radius = 10
+        self.max_radius = PUSHBACK_RANGE
+        self.alpha = 200
+        self.lifetime = 20  # Фреймов
+        self.timer = 0
+
+    def update(self):
+        self.timer += 1
+        # Расширяем круг
+        self.radius = int(10 + (self.max_radius - 10) * (self.timer / self.lifetime))
+        # Уменьшаем прозрачность
+        self.alpha = int(200 * (1 - self.timer / self.lifetime))
+
+    def is_expired(self):
+        return self.timer >= self.lifetime
+
+    def draw(self, screen, camera_x, camera_y):
+        draw_x = self.x - camera_x
+        draw_y = self.y - camera_y
+        if self.alpha > 0:
+            # Создаём поверхность для круга с прозрачностью
+            surface = pygame.Surface((self.radius * 2, self.radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(surface, (255, 165, 0, self.alpha), (self.radius, self.radius), self.radius, 3)
+            screen.blit(surface, (draw_x - self.radius, draw_y - self.radius))
 
 
 button_width = 376
@@ -613,8 +727,9 @@ def handle_game_over_events(events):
             quit_button = pygame.Rect(button_x, screen_height // 2 + 20, button_width, button_height)
 
             if respawn_button.collidepoint(mouse_pos):
-                # Respawn: сброс hp, позиция, инвентарь, инструменты
+                # Respawn: сброс hp, mana, позиция, инвентарь, инструменты
                 player.hp = 100
+                player.mana = 100  # Восстановление маны при респавне
                 player.hunger_timer = 0
                 player.x = WORLD_WIDTH // 2
                 player.y = WORLD_HEIGHT // 2
@@ -862,6 +977,7 @@ def main():
     space_cooldown = 0  # **Новое: cooldown для SPACE в мс**
     lightning_cooldown = 0  # Cooldown для молнии
     lightnings = []  # Список молний
+    pushback_waves = []  # Визуальные эффекты отталкивания
     food_cooldown = 0  # Cooldown для еды
     meat_cooldown = 0  # Cooldown для мяса
     day_night_cycle = DayNightCycle()  # Система дня и ночи
@@ -903,6 +1019,7 @@ def main():
         inventory.update(save_data.get('inventory', {}))
         tools.update(save_data.get('tools', {}))
         current_tool = save_data.get('current_tool', current_tool)
+        player.pushback_cooldown = save_data.get('pushback_cooldown', 0)
 
     # Спавн ресурсов с проверкой расстояния
     resources = []
@@ -1049,6 +1166,7 @@ def main():
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
                 lightning_cooldown = max(0, lightning_cooldown - dt)
+                player.pushback_cooldown = max(0, player.pushback_cooldown - dt)
                 food_cooldown = max(0, food_cooldown - dt)
                 meat_cooldown = max(0, meat_cooldown - dt)
 
@@ -1130,8 +1248,12 @@ def main():
                     inventory['meat'] -= 1
                     meat_cooldown = 200
 
-                # Молния
-                if keys[pygame.K_q] and lightning_cooldown <= 0:
+                # Восстановление маны со временем
+                player.mana = min(player.max_mana, player.mana + player.mana_regen_rate * dt)
+
+                # Молния (требует 20 маны)
+                mana_cost = 20
+                if keys[pygame.K_q] and lightning_cooldown <= 0 and player.mana >= mana_cost:
                     closest = None
                     min_dist = 200
                     for enemy in enemies:
@@ -1150,6 +1272,7 @@ def main():
                             min_dist = dist
                             closest = animal
                     if closest:
+                        player.mana -= mana_cost  # Тратим ману
                         damage = random.randint(15, 20)
                         closest.hp -= damage
                         if closest.hp <= 0:
@@ -1169,7 +1292,11 @@ def main():
                         target_size = closest.size if hasattr(closest, 'size') else PLAYER_SIZE
                         lightnings.append(Lightning(player.x + PLAYER_SIZE // 2, player.y + PLAYER_SIZE // 2,
                                                     closest.x + target_size // 2, closest.y + target_size // 2))
-                        lightning_cooldown = 20000  # 20 сек
+                        lightning_cooldown = 5000  # 5 сек (уменьшил, так как теперь есть ограничение маны)
+
+                # Отталкивание (клавиша E) - не тратит ману, перезарядка 15 сек
+                if keys[pygame.K_e] and player.pushback_cooldown <= 0:
+                    player.pushback(enemies, animals, bosses, pushback_waves, inventory, resources, day_night_cycle)
 
                 # Обновление движения животных перед player.move
                 for animal in animals:
@@ -1199,7 +1326,7 @@ def main():
                     fireball.move()
                     # Коллизия с игроком
                     if abs(fireball.x - player.x) < PLAYER_SIZE and abs(fireball.y - player.y) < PLAYER_SIZE:
-                        player.hp -= 20
+                        player.hp -= 30
                         fireballs.remove(fireball)
                         continue
                     # Удалить если вышел за границы или истекло время
@@ -1211,6 +1338,12 @@ def main():
                     lightning.update()
                     if lightning.is_expired():
                         lightnings.remove(lightning)
+
+                # Обновление эффектов отталкивания
+                for wave in pushback_waves[:]:
+                    wave.update()
+                    if wave.is_expired():
+                        pushback_waves.remove(wave)
 
                 if player.hp <= 0:
                     game_state = 'game_over'
@@ -1294,6 +1427,8 @@ def main():
                     fireball.draw(screen, camera_x, camera_y)
                 for lightning in lightnings:
                     lightning.draw(screen, camera_x, camera_y)
+                for wave in pushback_waves:
+                    wave.draw(screen, camera_x, camera_y)
 
                 player.draw(screen, camera_x, camera_y)
 
@@ -1329,13 +1464,36 @@ def main():
                     screen.blit(font.render(tool_text, True, BLACK), (10, 10))
                     health_text = f"Здоровье: {player.hp}"
                     screen.blit(font.render(health_text, True, BLACK), (10, 40))
+                    mana_text = f"Мана: {int(player.mana)}/{player.max_mana}"
+                    screen.blit(font.render(mana_text, True, (0, 0, 200)), (10, 70))  # Синий цвет для маны
                     time_text = f"Время: {'День' if day_night_cycle.is_day() else 'Ночь'}"
-                    screen.blit(font.render(time_text, True, BLACK), (10, 70))
+                    screen.blit(font.render(time_text, True, BLACK), (10, 100))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
-                    screen.blit(font.render(pos_text, True, BLACK), (10, 100))
-                    hint_text = font.render("Нажми I для инвентаря\nНажми C для крафта", True, BLACK)
-                    screen.blit(hint_text, (10, 130))
+                    screen.blit(font.render(pos_text, True, BLACK), (10, 130))
+                    hint_text = "I-инвентарь, C-крафт, Q-молния, E-отталк."
+                    screen.blit(font.render(hint_text, True, BLACK), (10, 160))
+                    
+                    # Показываем cooldown отталкивания
+                    if player.pushback_cooldown > 0:
+                        pushback_cd_text = f"Отталкивание: {int(player.pushback_cooldown / 1000)}с"
+                        screen.blit(font.render(pushback_cd_text, True, (150, 75, 0)), (10, 185))
+                    else:
+                        screen.blit(font.render("Отталкивание: готово", True, (0, 150, 0)), (10, 185))
+                    
                     player_health_bar.draw(screen)
+                    
+                    # Полоска маны под полоской здоровья
+                    mana_bar_width = 150
+                    mana_bar_height = 15
+                    mana_bar_x = BAR_X + 75  # Смещение для центрирования под healthbar
+                    mana_bar_y = BAR_Y + BAR_HEIGHT + 5
+                    # Фон полоски маны
+                    pygame.draw.rect(screen, (50, 50, 100), (mana_bar_x, mana_bar_y, mana_bar_width, mana_bar_height))
+                    # Заполнение полоски маны
+                    mana_fill_width = int((player.mana / player.max_mana) * mana_bar_width)
+                    pygame.draw.rect(screen, (0, 100, 255), (mana_bar_x, mana_bar_y, mana_fill_width, mana_bar_height))
+                    # Рамка полоски маны
+                    pygame.draw.rect(screen, (0, 0, 150), (mana_bar_x, mana_bar_y, mana_bar_width, mana_bar_height), 2)
 
                 # Рисуем меню инвентаря (если открыто)
                 if inventory_open:
