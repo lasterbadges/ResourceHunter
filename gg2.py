@@ -1309,7 +1309,7 @@ def main():
 
                         # Создаем градиент от центра к краям
                         for r in range(radius, 0, -1):
-                            alpha = int(230 * math.exp(- (r / radius) * 3))
+                            alpha = 240 - int(240 * (r / radius))
                             pygame.draw.circle(mask, (255, 128, 128, alpha), (radius, radius), r)
 
                         return mask
