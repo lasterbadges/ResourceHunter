@@ -183,3 +183,5 @@ cython_debug/
 .idea/misc.xml
 save.json
 ForTests.py
+Test.py
+TEst2.py
