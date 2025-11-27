@@ -1299,7 +1299,7 @@ def main():
 
                 # Оверлей для плавного перехода дня и ночи с растушевкой
                 light_intensity = day_night_cycle.get_light_intensity()
-                if light_intensity < 188888:  # Рисовать оверлей только если не полный день
+                if light_intensity < 1:  # Рисовать оверлей только если не полный день
                     darkness = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
                     darkness.fill((0, 0, 0, 240))
 
@@ -1309,7 +1309,7 @@ def main():
 
                         # Создаем градиент от центра к краям
                         for r in range(radius, 0, -1):
-                            alpha = 230 - int(230 * (r / radius))
+                            alpha = int(230 * math.exp(- (r / radius) * 3))
                             pygame.draw.circle(mask, (255, 128, 128, alpha), (radius, radius), r)
 
                         return mask
