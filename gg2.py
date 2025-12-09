@@ -1444,8 +1444,6 @@ def main():
 
                 # Молния (требует 20 маны)
                 mana_cost = 20
-                if keys[pygame.K_q] and lightning_cooldown <= 0 and player.mana >= mana_cost:
-                # Поедание приготовленной еды (клавиша H)
                 if keys[pygame.K_h] and inventory.get('cooked_food', 0) > 0 and food_cooldown <= 0:
                     player.hp = min(100, player.hp + 50)
                     inventory['cooked_food'] -= 1
