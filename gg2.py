@@ -58,7 +58,6 @@ font = pygame.font.SysFont(None, 24)
 # Set up the screen
 clock = pygame.time.Clock()
 
-
 # Загрузка изображений (теперь 5 фреймов: stand + 4 walk)
 def load_image(filename, size):
     filepath = os.path.join(os.getcwd(), 'sprites', filename)
@@ -127,6 +126,9 @@ def load_game():
         return data
     except FileNotFoundError:
         return None
+
+
+
 
 
 # Класс Player с обновлённой анимацией
@@ -262,6 +264,7 @@ class Player:
             screen.blit(text, (draw_x + 5, draw_y + 5))
 
 
+
 tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
 rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
 
@@ -343,6 +346,10 @@ class Resource:
                 pygame.draw.rect(screen, color, (draw_x, draw_y, RESOURCE_SIZE, RESOURCE_SIZE))
 
 
+
+
+
+
 class Lightning:
     def __init__(self, x1, y1, x2, y2):
         self.x1 = x1
@@ -375,6 +382,8 @@ class Lightning:
             screen.blit(rotated_img, rect)
         else:
             pygame.draw.rect(screen, (255, 255, 0), (mid_x - camera_x, mid_y - camera_y, 15, 50))
+
+
 
 
 button_width = 376
