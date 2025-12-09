@@ -33,8 +33,7 @@ VISION_RANGE = 200  # Радиус, в котором враг замечает 
 BOSS_ATTACK_RANGE = 80  # Радиус атаки для босса
 BOSS_VISION_RANGE = 300  # Радиус нацеливания для босса
 BOSS_SIZE = 80
-
-
+BUILDING_SIZE = 60  # Размер построек
 
 # Colors
 GRASS_GREEN = (34, 139, 34)  # Зеленый для травы (fallback)
@@ -47,6 +46,10 @@ DARK_GREEN = (0, 128, 0)
 LIGHT_GRAY = (200, 200, 200)
 SEMI_BLACK = (0, 0, 0, 128)  # Полупрозрачный для фона меню
 RED = (255, 0, 0)  # Для врагов
+ORANGE = (255, 165, 0)  # Для костра
+BLUE = (0, 0, 255)  # Для верстака
+YELLOW = (255, 255, 0)  # Для палатки
+DARK_RED = (139, 0, 0)  # Для капкана
 
 # Инициализация экрана и шрифта
 screen = pygame.display.set_mode((screen_width, screen_height))
@@ -285,6 +288,33 @@ enemy_img = load_image("enemy.png", (PLAYER_SIZE, PLAYER_SIZE))
 lightning_img = load_image("lightning.png", None)
 
 
+# --- НОВЫЙ КЛАСС ДЛЯ СТРОИТЕЛЬСТВА ---
+class Building:
+    def __init__(self, x, y, type_):
+        self.x = x
+        self.y = y
+        self.type = type_  # 'workbench', 'tent', 'trap', 'campfire'
+        self.size = BUILDING_SIZE
+
+    def draw(self, screen, camera_x, camera_y):
+        draw_x = self.x - camera_x
+        draw_y = self.y - camera_y
+        if 0 <= draw_x <= screen_width and 0 <= draw_y <= screen_height:
+            if self.type == 'workbench':
+                pygame.draw.rect(screen, BLUE, (draw_x, draw_y, self.size, self.size))
+                screen.blit(font.render("W", True, WHITE), (draw_x + 10, draw_y + 10))
+            elif self.type == 'tent':
+                pygame.draw.rect(screen, YELLOW, (draw_x, draw_y, self.size, self.size))
+                # Треугольная крыша (схематично)
+                pygame.draw.polygon(screen, BROWN, [(draw_x, draw_y + self.size), (draw_x + self.size // 2, draw_y),
+                                                    (draw_x + self.size, draw_y + self.size)])
+            elif self.type == 'trap':
+                pygame.draw.rect(screen, DARK_RED, (draw_x + 10, draw_y + 30, 40, 10))
+                pygame.draw.circle(screen, GRAY, (draw_x + 30, draw_y + 35), 15, 2)
+            elif self.type == 'campfire':
+                pygame.draw.circle(screen, GRAY, (draw_x + 30, draw_y + 30), 25)
+                pygame.draw.circle(screen, ORANGE, (draw_x + 30, draw_y + 30), 15)
+                # Мерцание можно добавить в update, но здесь просто круг
 
 
 # Resource class (без изменений)
@@ -618,7 +648,8 @@ def handle_game_over_events(events):
                 player.hunger_timer = 0
                 player.x = WORLD_WIDTH // 2
                 player.y = WORLD_HEIGHT // 2
-                inventory = {'wood': 0, 'stone': 0, 'food': 0, 'meat': 0}
+                inventory = {'wood': 0, 'stone': 0, 'food': 0, 'meat': 0, 'workbench': 0, 'tent': 0, 'trap': 0,
+                             'campfire': 0, 'cooked_food': 0}
                 tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
                 current_tool = 'hand'
                 game_state = 'game'
@@ -736,7 +767,7 @@ def update_camera(player, camera_x, camera_y):
 # Функция для рисования меню инвентаря (обновлено: добавлен Meat)
 def draw_inventory_menu(screen, inventory, menu_pos):
     # Полупрозрачный фон
-    menu_surf = pygame.Surface((MENU_WIDTH, MENU_HEIGHT), pygame.SRCALPHA)
+    menu_surf = pygame.Surface((MENU_WIDTH, MENU_HEIGHT + 100), pygame.SRCALPHA)
     menu_surf.fill(SEMI_BLACK)
     screen.blit(menu_surf, menu_pos)
 
@@ -749,13 +780,19 @@ def draw_inventory_menu(screen, inventory, menu_pos):
     screen.blit(font.render(f"Дерево: {inventory['wood']}", True, WHITE), (menu_pos[0] + 10, inv_y))
     screen.blit(font.render(f"Камень: {inventory['stone']}", True, WHITE), (menu_pos[0] + 10, inv_y + 30))
     screen.blit(font.render(f"Еда: {inventory['food']}", True, WHITE), (menu_pos[0] + 10, inv_y + 60))
-    screen.blit(font.render(f"Мясо: {inventory['meat']}", True, WHITE), (menu_pos[0] + 10, inv_y + 90))  # Новое: Мясо
+    screen.blit(font.render(f"Мясо: {inventory['meat']}", True, WHITE), (menu_pos[0] + 10, inv_y + 90))
+    screen.blit(font.render(f"Приготовленная еда: {inventory.get('cooked_food', 0)}", True, WHITE),
+                (menu_pos[0] + 10, inv_y + 120))
+    screen.blit(font.render(f"Верстак: {inventory.get('workbench', 0)}", True, WHITE), (menu_pos[0] + 10, inv_y + 150))
+    screen.blit(font.render(f"Палатка: {inventory.get('tent', 0)}", True, WHITE), (menu_pos[0] + 10, inv_y + 180))
+    screen.blit(font.render(f"Капкан: {inventory.get('trap', 0)}", True, WHITE), (menu_pos[0] + 10, inv_y + 210))
+    screen.blit(font.render(f"Костер: {inventory.get('campfire', 0)}", True, WHITE), (menu_pos[0] + 10, inv_y + 240))
 
 
-# Функция для рисования меню крафта (обновлено для меча)
+# Функция для рисования меню крафта (обновлено для меча и верстака)
 def draw_craft_menu(screen, inventory, tools, menu_pos):
     # Полупрозрачный фон
-    menu_surf = pygame.Surface((MENU_WIDTH, MENU_HEIGHT), pygame.SRCALPHA)
+    menu_surf = pygame.Surface((MENU_WIDTH, MENU_HEIGHT + 50), pygame.SRCALPHA)
     menu_surf.fill(SEMI_BLACK)
     screen.blit(menu_surf, menu_pos)
 
@@ -801,7 +838,7 @@ def draw_craft_menu(screen, inventory, tools, menu_pos):
         screen.blit(font.render("Кирка: ✓", True, GREEN), (menu_pos[0] + 10, button_y))
         button_y += 30
 
-    # Меч (новое)
+    # Меч
     if not tools['sword']:
         sword_req = "4 дерева, 5 камней"
         can_craft_sword = inventory['wood'] >= 4 and inventory['stone'] >= 5
@@ -813,14 +850,96 @@ def draw_craft_menu(screen, inventory, tools, menu_pos):
         screen.blit(font.render(sword_req, True, WHITE), (menu_pos[0] + 80, button_y - 20))
         screen.blit(sword_text, (sword_button.x + 10, sword_button.y + 10))
         buttons.append(('sword', sword_button, can_craft_sword))
+        button_y += BUTTON_HEIGHT + 10
     else:
         screen.blit(font.render("Меч: ✓", True, GREEN), (menu_pos[0] + 10, button_y))
         button_y += 30
 
-    return buttons  # Возвращаем кнопки для обработки кликов
+    # Верстак
+    wb_req = "5 дерева"
+    can_craft_wb = inventory['wood'] >= 5
+    button_color = GREEN if can_craft_wb else GRAY
+    wb_text = font.render("Скрафтить", True, WHITE)
+    wb_button = pygame.Rect(menu_pos[0] + 10, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+    pygame.draw.rect(screen, button_color, wb_button)
+    screen.blit(font.render("Верстак:", True, WHITE), (menu_pos[0] + 10, button_y - 20))
+    screen.blit(font.render(wb_req, True, WHITE), (menu_pos[0] + 80, button_y - 20))
+    screen.blit(wb_text, (wb_button.x + 10, wb_button.y + 10))
+    buttons.append(('workbench', wb_button, can_craft_wb))
+
+    return buttons
 
 
-# Функция для обработки крафта (обновлено для меча)
+# --- МЕНЮ ВЕРСТАКА ---
+def draw_workbench_menu(screen, inventory, menu_pos):
+    # Полупрозрачный фон
+    menu_surf = pygame.Surface((MENU_WIDTH, MENU_HEIGHT + 100), pygame.SRCALPHA)
+    menu_surf.fill(SEMI_BLACK)
+    screen.blit(menu_surf, menu_pos)
+
+    title = font.render("Верстак", True, WHITE)
+    screen.blit(title, (menu_pos[0] + 10, menu_pos[1] + 10))
+
+    button_y = menu_pos[1] + 50
+    buttons = []
+
+    # Палатка
+    req = "10 дерева, 2 камня"
+    can_craft = inventory['wood'] >= 10 and inventory['stone'] >= 2
+    button_color = GREEN if can_craft else GRAY
+    btn_rect = pygame.Rect(menu_pos[0] + 10, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+    pygame.draw.rect(screen, button_color, btn_rect)
+    screen.blit(font.render("Палатка", True, WHITE), (menu_pos[0] + 10, button_y - 20))
+    screen.blit(font.render(req, True, WHITE), (menu_pos[0] + 100, button_y - 20))
+    screen.blit(font.render("Скрафтить", True, WHITE), (btn_rect.x + 10, btn_rect.y + 10))
+    buttons.append(('tent', btn_rect, can_craft))
+    button_y += BUTTON_HEIGHT + 30
+
+    # Капкан
+    req = "7 дерева, 3 камня"
+    can_craft = inventory['wood'] >= 7 and inventory['stone'] >= 3
+    button_color = GREEN if can_craft else GRAY
+    btn_rect = pygame.Rect(menu_pos[0] + 10, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+    pygame.draw.rect(screen, button_color, btn_rect)
+    screen.blit(font.render("Капкан", True, WHITE), (menu_pos[0] + 10, button_y - 20))
+    screen.blit(font.render(req, True, WHITE), (menu_pos[0] + 100, button_y - 20))
+    screen.blit(font.render("Скрафтить", True, WHITE), (btn_rect.x + 10, btn_rect.y + 10))
+    buttons.append(('trap', btn_rect, can_craft))
+    button_y += BUTTON_HEIGHT + 30
+
+    # Костер
+    req = "5 дерева, 5 камней"
+    can_craft = inventory['wood'] >= 5 and inventory['stone'] >= 5
+    button_color = GREEN if can_craft else GRAY
+    btn_rect = pygame.Rect(menu_pos[0] + 10, button_y, BUTTON_WIDTH, BUTTON_HEIGHT)
+    pygame.draw.rect(screen, button_color, btn_rect)
+    screen.blit(font.render("Костер", True, WHITE), (menu_pos[0] + 10, button_y - 20))
+    screen.blit(font.render(req, True, WHITE), (menu_pos[0] + 100, button_y - 20))
+    screen.blit(font.render("Скрафтить", True, WHITE), (btn_rect.x + 10, btn_rect.y + 10))
+    buttons.append(('campfire', btn_rect, can_craft))
+
+    return buttons
+
+
+def handle_workbench_craft(item_name, inventory):
+    if item_name == 'tent' and inventory['wood'] >= 10 and inventory['stone'] >= 2:
+        inventory['wood'] -= 10
+        inventory['stone'] -= 2
+        inventory['tent'] = inventory.get('tent', 0) + 1
+        print("Палатка скрафчена!")
+    elif item_name == 'trap' and inventory['wood'] >= 7 and inventory['stone'] >= 3:
+        inventory['wood'] -= 7
+        inventory['stone'] -= 3
+        inventory['trap'] = inventory.get('trap', 0) + 1
+        print("Капкан скрафчен!")
+    elif item_name == 'campfire' and inventory['wood'] >= 5 and inventory['stone'] >= 5:
+        inventory['wood'] -= 5
+        inventory['stone'] -= 5
+        inventory['campfire'] = inventory.get('campfire', 0) + 1
+        print("Костер скрафчен!")
+
+
+# Функция для обработки крафта (обновлено)
 def handle_craft(tool_name, inventory, tools):
     if tool_name == 'axe' and inventory['wood'] >= 3 and inventory['stone'] >= 2 and not tools['axe']:
         inventory['wood'] -= 3
@@ -840,6 +959,11 @@ def handle_craft(tool_name, inventory, tools):
         tools['sword'] = True
         print("Меч скрафчен! ⚔️")
         return True
+    elif tool_name == 'workbench' and inventory['wood'] >= 5:
+        inventory['wood'] -= 5
+        inventory['workbench'] = inventory.get('workbench', 0) + 1
+        print("Верстак скрафчен! 🛠️")
+        return True
     else:
         print("Недостаточно ресурсов или инструмент уже скрафчен!")
         return False
@@ -856,7 +980,8 @@ def main():
     player = Player()
     game_state = 'menu'
     previous_state = None
-    inventory = {'wood': 0, 'stone': 0, 'food': 0, 'meat': 0}  # Новое: добавлено 'meat' для убоины врагов
+    inventory = {'wood': 0, 'stone': 0, 'food': 0, 'meat': 0, 'workbench': 0, 'tent': 0, 'trap': 0, 'campfire': 0,
+                 'cooked_food': 0}
     tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
     current_tool = 'hand'
     space_cooldown = 0  # **Новое: cooldown для SPACE в мс**
@@ -865,6 +990,12 @@ def main():
     food_cooldown = 0  # Cooldown для еды
     meat_cooldown = 0  # Cooldown для мяса
     day_night_cycle = DayNightCycle()  # Система дня и ночи
+
+    buildings = []  # Список построек
+    workbench_menu_open = False
+    building_mode = False
+    build_options = ['workbench', 'tent', 'trap', 'campfire']
+    current_build_index = 0
 
     menu_camera_x = 0
     menu_camera_y = 0
@@ -1095,8 +1226,13 @@ def main():
 
                 # ESC для паузы
                 if keys[pygame.K_ESCAPE]:
-                    game_state = 'pause'
-                    print("Transitioning to pause state")
+                    if workbench_menu_open:
+                        workbench_menu_open = False
+                    elif building_mode:
+                        building_mode = False
+                    else:
+                        game_state = 'pause'
+                        print("Transitioning to pause state")
                     pygame.time.wait(200)
 
                 # Управление меню (без изменений)
@@ -1109,8 +1245,61 @@ def main():
                     print("Меню крафта:", "открыто" if craft_open else "закрыто")
                     pygame.time.wait(200)  # Задержка
 
+                # РЕЖИМ СТРОИТЕЛЬСТВА
+                if keys[pygame.K_b] and not inventory_open and not craft_open and not workbench_menu_open:
+                    building_mode = not building_mode
+                    print("Режим строительства:", "вкл" if building_mode else "выкл")
+                    pygame.time.wait(200)
+
+                # Выбор постройки в режиме строительства
+                if building_mode:
+                    if keys[pygame.K_1]: current_build_index = 0
+                    if keys[pygame.K_2]: current_build_index = 1
+                    if keys[pygame.K_3]: current_build_index = 2
+                    if keys[pygame.K_4]: current_build_index = 3
+
+                    # Размещение ЛКМ
+                    if pygame.mouse.get_pressed()[0]:
+                        mx, my = pygame.mouse.get_pos()
+                        world_mx = mx + camera_x
+                        world_my = my + camera_y
+                        item_to_build = build_options[current_build_index]
+
+                        if inventory.get(item_to_build, 0) > 0:
+                            # Проверка коллизий перед постройкой
+                            new_build_rect = pygame.Rect(world_mx - 30, world_my - 30, BUILDING_SIZE, BUILDING_SIZE)
+                            collides = False
+                            for b in buildings:
+                                if new_build_rect.colliderect(
+                                    pygame.Rect(b.x, b.y, BUILDING_SIZE, BUILDING_SIZE)): collides = True
+                            if not collides:
+                                buildings.append(Building(world_mx - 30, world_my - 30, item_to_build))
+                                inventory[item_to_build] -= 1
+                                pygame.time.wait(200)
+
+                # ВЗАИМОДЕЙСТВИЕ С ПОСТРОЙКАМИ (E)
+                if keys[pygame.K_e]:
+                    player_rect = pygame.Rect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)
+                    for b in buildings:
+                        b_rect = pygame.Rect(b.x, b.y, BUILDING_SIZE, BUILDING_SIZE)
+                        # Расширим зону взаимодействия
+                        if player_rect.colliderect(b_rect.inflate(20, 20)):
+                            if b.type == 'workbench':
+                                workbench_menu_open = not workbench_menu_open
+                                pygame.time.wait(200)
+                            elif b.type == 'tent':
+                                day_night_cycle.time = 300  # Сброс на утро
+                                print("Вы поспали в палатке. Наступило утро.")
+                                pygame.time.wait(500)
+                            elif b.type == 'campfire':
+                                if inventory['meat'] > 0:
+                                    inventory['meat'] -= 1
+                                    inventory['cooked_food'] = inventory.get('cooked_food', 0) + 1
+                                    print("Мясо пожарено!")
+                                    pygame.time.wait(200)
+
                 # Смена инструментов (только если меню закрыты)
-                if not inventory_open and not craft_open:
+                if not inventory_open and not craft_open and not workbench_menu_open:
                     if keys[pygame.K_1]:
                         current_tool = 'hand'
                     elif keys[pygame.K_2] and tools['axe']:
@@ -1129,6 +1318,12 @@ def main():
                     player.hp = min(100, player.hp + 30)
                     inventory['meat'] -= 1
                     meat_cooldown = 200
+
+                # Поедание приготовленной еды (клавиша H)
+                if keys[pygame.K_h] and inventory.get('cooked_food', 0) > 0 and food_cooldown <= 0:
+                    player.hp = min(100, player.hp + 50)
+                    inventory['cooked_food'] -= 1
+                    food_cooldown = 200
 
                 # Молния
                 if keys[pygame.K_q] and lightning_cooldown <= 0:
@@ -1172,8 +1367,23 @@ def main():
                         lightning_cooldown = 20000  # 20 сек
 
                 # Обновление движения животных перед player.move
-                for animal in animals:
+                # ЛОГИКА КАПКАНОВ
+                for animal in animals[:]:
                     animal.move(resources)
+                    # Проверка капканов
+                    animal_rect = pygame.Rect(animal.x, animal.y, PLAYER_SIZE, PLAYER_SIZE)
+                    for b in buildings[:]:
+                        if b.type == 'trap':
+                            trap_rect = pygame.Rect(b.x, b.y, BUILDING_SIZE, BUILDING_SIZE)
+                            if animal_rect.colliderect(trap_rect):
+                                animal.hp = 0
+                                inventory['food'] += 2
+                                animals.remove(animal)
+                                new_animal = spawn_animal(resources + animals, animal_types)
+                                animals.append(new_animal)
+                                buildings.remove(b)  # Капкан срабатывает и исчезает
+                                print("Капкан сработал!")
+                                break
 
                 # Обновление движения и атаки врагов
                 for enemy in enemies[:]:
@@ -1290,12 +1500,22 @@ def main():
                     enemy.draw(screen, camera_x, camera_y)  # Рисуем врагов
                 for boss in bosses:
                     boss.draw(screen, camera_x, camera_y, player)
+                for b in buildings:
+                    b.draw(screen, camera_x, camera_y)
                 for fireball in fireballs:
                     fireball.draw(screen, camera_x, camera_y)
                 for lightning in lightnings:
                     lightning.draw(screen, camera_x, camera_y)
 
                 player.draw(screen, camera_x, camera_y)
+
+                # Рисуем призрак постройки
+                if building_mode:
+                    mx, my = pygame.mouse.get_pos()
+                    item_name = build_options[current_build_index]
+                    txt = font.render(f"Размещение: {item_name} (Имеется: {inventory.get(item_name, 0)})", True, WHITE)
+                    screen.blit(txt, (mx + 20, my - 20))
+                    pygame.draw.rect(screen, (255, 255, 255), (mx, my, BUILDING_SIZE, BUILDING_SIZE), 2)
 
                 # Оверлей для плавного перехода дня и ночи с растушевкой
                 light_intensity = day_night_cycle.get_light_intensity()
@@ -1306,17 +1526,29 @@ def main():
                     def create_circle_mask(radius):
                         size = radius * 2
                         mask = pygame.Surface((size, size), pygame.SRCALPHA)
-
-                        # Создаем градиент от центра к краям
                         for r in range(radius, 0, -1):
                             alpha = 240 - int(240 * (r / radius))
                             pygame.draw.circle(mask, (255, 128, 128, alpha), (radius, radius), r)
-
                         return mask
 
                     small_mask = create_circle_mask(150)
+
+                    # Свет вокруг игрока
                     current_mask = small_mask
-                    darkness.blit(current_mask,(player.x + PLAYER_SIZE//2 - camera_x - current_mask.get_width()//2, player.y + PLAYER_SIZE//2 - camera_y - current_mask.get_height()//2), special_flags=pygame.BLEND_RGBA_SUB)
+                    darkness.blit(current_mask, (player.x + PLAYER_SIZE // 2 - camera_x - current_mask.get_width() // 2,
+                                                 player.y + PLAYER_SIZE // 2 - camera_y - current_mask.get_height() // 2),
+                                  special_flags=pygame.BLEND_RGBA_SUB)
+
+                    # Свет вокруг костров
+                    fire_mask = create_circle_mask(200)
+                    for b in buildings:
+                        if b.type == 'campfire':
+                            draw_x = b.x + BUILDING_SIZE // 2 - camera_x
+                            draw_y = b.y + BUILDING_SIZE // 2 - camera_y
+                            darkness.blit(fire_mask,
+                                          (draw_x - fire_mask.get_width() // 2, draw_y - fire_mask.get_height() // 2),
+                                          special_flags=pygame.BLEND_RGBA_SUB)
+
                     screen.blit(darkness, (0, 0))
 
                 # Визуальный таймер cooldown кувырка
@@ -1324,7 +1556,7 @@ def main():
                 screen.blit(cooldown_sprites[key], (screen_width - 100, 50))
 
                 # UI (только если меню закрыты)
-                if not inventory_open and not craft_open:
+                if not inventory_open and not craft_open and not workbench_menu_open:
                     tool_text = f"Инструмент: {current_tool}"
                     screen.blit(font.render(tool_text, True, BLACK), (10, 10))
                     health_text = f"Здоровье: {player.hp}"
@@ -1333,7 +1565,7 @@ def main():
                     screen.blit(font.render(time_text, True, BLACK), (10, 70))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
                     screen.blit(font.render(pos_text, True, BLACK), (10, 100))
-                    hint_text = font.render("Нажми I для инвентаря\nНажми C для крафта", True, BLACK)
+                    hint_text = font.render("I-Инв, C-Крафт, B-Стройка, E-Действ, H-Еда", True, BLACK)
                     screen.blit(hint_text, (10, 130))
                     player_health_bar.draw(screen)
 
@@ -1341,22 +1573,34 @@ def main():
                 if inventory_open:
                     draw_inventory_menu(screen, inventory, menu_pos)
                     close_text = font.render("Нажми I для закрытия", True, WHITE)
-                    screen.blit(close_text, (menu_pos[0] + 10, menu_pos[1] + MENU_HEIGHT - 30))
+                    screen.blit(close_text, (menu_pos[0] + 10, menu_pos[1] + MENU_HEIGHT + 70))
 
                 # Рисуем меню крафта (если открыто)
                 if craft_open:
                     buttons = draw_craft_menu(screen, inventory, tools, menu_pos)
-
-                    # Обработка кликов (если ЛКМ зажата и кнопка активна)
                     if pygame.mouse.get_pressed()[0]:
                         mouse_pos = pygame.mouse.get_pos()
                         for tool_name, button_rect, can_craft in buttons:
                             if button_rect.collidepoint(mouse_pos) and can_craft:
                                 handle_craft(tool_name, inventory, tools)
-                                pygame.time.wait(200)  # Задержка для фидбека
-                                break  # Только один крафт за клик
+                                pygame.time.wait(200)
+                                break
                     close_text = font.render("Нажми C для закрытия", True, WHITE)
                     screen.blit(close_text, (menu_pos[0] + 10, menu_pos[1] + MENU_HEIGHT - 30))
+
+                # Рисуем меню верстака (если открыто)
+                if workbench_menu_open:
+                    wb_buttons = draw_workbench_menu(screen, inventory, menu_pos)
+                    if pygame.mouse.get_pressed()[0]:
+                        mouse_pos = pygame.mouse.get_pos()
+                        for item_name, btn_rect, can_craft in wb_buttons:
+                            if btn_rect.collidepoint(mouse_pos) and can_craft:
+                                handle_workbench_craft(item_name, inventory)
+                                pygame.time.wait(200)
+                                break
+                    close_text = font.render("Нажми E или ESC для закрытия", True, WHITE)
+                    screen.blit(close_text, (menu_pos[0] + 10, menu_pos[1] + MENU_HEIGHT + 70))
+
             except Exception as e:
                 print(f"Error in game: {e}")
         elif game_state == 'settings':
