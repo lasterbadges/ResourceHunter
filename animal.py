@@ -1,6 +1,7 @@
 import pygame
 import random
 import os
+from sprite_manager import load_image
 
 pygame.init()
 
@@ -12,17 +13,6 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 font = pygame.font.SysFont(None, 24)
 
-def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), 'sprites', filename)
-    if os.path.exists(filepath):
-        try:
-            img = pygame.image.load(filepath).convert_alpha()
-            if size:
-                return pygame.transform.scale(img, size)
-            return img
-        except pygame.error:
-            print(f"Ошибка загрузки {filename}, fallback.")
-    return None
 
 animal_types = ['cow', 'wolf', 'sheep']
 

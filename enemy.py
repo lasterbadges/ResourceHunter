@@ -1,6 +1,7 @@
 import pygame
 import random
 import os
+from sprite_manager import load_image
 
 # Constants
 ATTACK_RANGE = 50  # Радиус атаки для врагов
@@ -13,18 +14,7 @@ GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
-# Функции загрузки изображений
-def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), filename)
-    if os.path.exists(filepath):
-        try:
-            img = pygame.image.load(filepath).convert_alpha()
-            if size:
-                return pygame.transform.scale(img, size)
-            return img
-        except pygame.error:
-            print(f"Ошибка загрузки {filename}, fallback.")
-    return None
+
 
 # Спрайты для врагов
 enemy_sprites = {}
