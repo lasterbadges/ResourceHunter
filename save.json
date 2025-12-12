@@ -1,1 +1,1 @@
-{"player_x": 1115, "player_y": 1500, "player_hp": 99, "inventory": {"wood": 0, "stone": 0, "food": 0, "meat": 0}, "tools": {"hand": true, "axe": false, "pickaxe": false, "sword": false}, "current_tool": "hand"}
+{"player_x": 2581, "player_y": 1293, "player_hp": 99, "inventory": {"wood": 0, "stone": 0, "food": 0, "meat": 0, "workbench": 0, "tent": 0, "trap": 0, "campfire": 0, "cooked_food": 0}, "tools": {"hand": true, "axe": false, "pickaxe": false, "sword": false}, "current_tool": "hand", "pushback_cooldown": 0}

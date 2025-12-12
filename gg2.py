@@ -386,7 +386,7 @@ def spawn_resource(existing_resources):
         x = random.randint(0, WORLD_WIDTH - RESOURCE_SIZE)
         y = random.randint(0, WORLD_HEIGHT - RESOURCE_SIZE)
         type_ = random.choice(['tree', 'rock'])
-        candidate = Resource(x, y, type_)
+        candidate = Resource(x, y, type_, screen)
         # Проверяем расстояние до существующих ресурсов
         too_close = False
         for res in existing_resources:
@@ -402,7 +402,7 @@ def spawn_resource(existing_resources):
     x = random.randint(0, WORLD_WIDTH - RESOURCE_SIZE)
     y = random.randint(0, WORLD_HEIGHT - RESOURCE_SIZE)
     type_ = random.choice(['tree', 'rock'])
-    return Resource(x, y, type_)
+    return Resource(x, y, type_, screen)
 
 
 # Spawn animal with distance check (обновлено для type)
@@ -412,7 +412,7 @@ def spawn_animal(existing_objects, animal_types):
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
         y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
         animal_type = random.choice(animal_types)
-        candidate = Animal(x, y, animal_type)
+        candidate = Animal(x, y, animal_type, screen)
         # Проверяем расстояние до ресурсов и других животных
         too_close = False
         for obj in existing_objects:
@@ -696,7 +696,7 @@ def main():
     global tools
     global current_tool
 
-    player = Player()
+    player = Player(screen)
     game_state = 'menu'
     previous_state = None
     inventory = {'wood': 0, 'stone': 0, 'food': 0, 'meat': 0, 'workbench': 0, 'tent': 0, 'trap': 0, 'campfire': 0,
@@ -719,7 +719,7 @@ def main():
 
     menu_camera_x = 0
     menu_camera_y = 0
-    menu_player = Player()  # Специальный игрок для меню
+    menu_player = Player(screen)  # Специальный игрок для меню
     menu_player.x = WORLD_WIDTH // 2
     menu_player.y = WORLD_HEIGHT // 2
 
@@ -1260,7 +1260,7 @@ def main():
                 light_intensity = day_night_cycle.get_light_intensity()
                 if light_intensity < 1:  # Рисовать оверлей только если не полный день
                     darkness = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-                    darkness.fill((0, 0, 0, 240))
+                    darkness.fill((0, 0, 0, 240 - 240 * light_intensity))
 
                     def create_circle_mask(radius):
                         size = radius * 2

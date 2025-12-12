@@ -1,14 +1,13 @@
 import time
 
 class DayNightCycle:
-    def __init__(self, day_length=60):  # day_length in seconds
+    def __init__(self, day_length=30):  # day_length in seconds
         self.day_length = day_length
         self.start_time = time.time() - day_length * 0.25  # Начать утром (6 AM)
         self.current_time = 0
 
     def update(self):
         self.current_time = (time.time() - self.start_time) % self.day_length
-
     def get_time_of_day(self):
         # Returns a value between 0 and 1, where 0 is midnight, 0.5 is noon
         return self.current_time / self.day_length

@@ -45,7 +45,7 @@ DARK_RED = (139, 0, 0)  # Для капкана
 
 
 class Resource:
-    def __init__(self, x, y, type_):
+    def __init__(self, x, y, type_, screen):
         tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
         rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
 
