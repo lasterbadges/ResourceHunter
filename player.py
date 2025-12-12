@@ -46,38 +46,11 @@ ORANGE = (255, 165, 0)  # Для костра
 BLUE = (0, 0, 255)  # Для верстака
 YELLOW = (255, 255, 0)  # Для палатки
 DARK_RED = (139, 0, 0)  # Для капкана
-player_sprites = {}
-directions = ['down', 'right', 'up', 'left']
-for dir in directions:
-    player_sprites[dir] = {
-        'stand': load_image(f"player_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-        'walk': [
-            load_image(f"player_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ],
-        'roll': [
-            load_image(f"player_{dir}_roll1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_roll2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_roll3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_roll4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ]
-    }
 
 
-# Fallback для left: flip от right, если нет спрайтов
-for key in ['stand', 'walk', 'roll']:
-    if isinstance(player_sprites['right'][key], list):
-        for i in range(len(player_sprites['right'][key])):
-            if player_sprites['right'][key][i] is not None and not player_sprites['left'][key][i]:
-                player_sprites['left'][key][i] = pygame.transform.flip(player_sprites['right'][key][i], True, False)
-    else:
-        if player_sprites['right'][key] is not None and not player_sprites['left'][key]:
-            player_sprites['left'][key] = pygame.transform.flip(player_sprites['right'][key], True, False)
 
-# Загрузка текстурки молнии
-lightning_img = load_image("lightning.png", None)
+
+
 
 
 class PushbackWave:
@@ -129,6 +102,8 @@ class Lightning:
         return self.timer > self.lifetime
 
     def draw(self, screen, camera_x, camera_y):
+        # Загрузка текстурки молнии
+        lightning_img = load_image("lightning.png", None)
         # Позиция в середине линии
         mid_x = (self.x1 + self.x2) / 2
         mid_y = (self.y1 + self.y2) / 2
@@ -172,6 +147,36 @@ class Player:
     # Removed duplicate move method
 
     def draw(self, screen, camera_x, camera_y):
+
+        player_sprites = {}
+        directions = ['down', 'right', 'up', 'left']
+        for dir in directions:
+            player_sprites[dir] = {
+                'stand': load_image(f"player_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                'walk': [
+                    load_image(f"player_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"player_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"player_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"player_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
+                ],
+                'roll': [
+                    load_image(f"player_{dir}_roll1.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"player_{dir}_roll2.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"player_{dir}_roll3.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"player_{dir}_roll4.png", (PLAYER_SIZE, PLAYER_SIZE))
+                ]
+            }
+        # Fallback для left: flip от right, если нет спрайтов
+        for key in ['stand', 'walk', 'roll']:
+            if isinstance(player_sprites['right'][key], list):
+                for i in range(len(player_sprites['right'][key])):
+                    if player_sprites['right'][key][i] is not None and not player_sprites['left'][key][i]:
+                        player_sprites['left'][key][i] = pygame.transform.flip(player_sprites['right'][key][i], True,
+                                                                               False)
+            else:
+                if player_sprites['right'][key] is not None and not player_sprites['left'][key]:
+                    player_sprites['left'][key] = pygame.transform.flip(player_sprites['right'][key], True, False)
+
         draw_x = self.x - camera_x
         draw_y = self.y - camera_y
 
@@ -182,6 +187,20 @@ class Player:
 
         if sprite:
             screen.blit(sprite, (draw_x, draw_y))
+        draw_x = self.x - camera_x
+        draw_y = self.y - camera_y
+
+        if self.is_rolling:
+            sprite = player_sprites[self.direction]['roll'][self.roll_frame]
+        elif self.is_moving:
+            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
+        else:
+            sprite = player_sprites[self.direction]['stand']
+
+        if sprite:
+            screen.blit(sprite, (draw_x, draw_y))
+        else:
+            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
 
     def move(self, keys):
         if self.roll_cooldown > 0:
@@ -330,19 +349,3 @@ class Player:
 
         print("Отталкивание активировано!")
 
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_rolling:
-            sprite = player_sprites[self.direction]['roll'][self.roll_frame]
-        elif self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = player_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            screen.blit((draw_x + 5, draw_y + 5))

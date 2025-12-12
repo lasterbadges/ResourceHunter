@@ -41,12 +41,14 @@ ORANGE = (255, 165, 0)  # Для костра
 BLUE = (0, 0, 255)  # Для верстака
 YELLOW = (255, 255, 0)  # Для палатки
 DARK_RED = (139, 0, 0)  # Для капкана
-tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
-rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
+
 
 
 class Resource:
     def __init__(self, x, y, type_):
+        tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
+        rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
+
         self.rock_img = rock_img
         self.tree_img = tree_img
         self.x = x

@@ -16,34 +16,6 @@ WHITE = (255, 255, 255)
 
 
 
-# Спрайты для врагов
-enemy_sprites = {}
-directions = ['down', 'right', 'up', 'left']
-for dir in directions:
-    enemy_sprites[dir] = {
-        'stand': load_image(f"enemy_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-        'walk': [
-            load_image(f"enemy_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ]
-    }
-
-# Fallback для left: flip от right, только если right не None
-for key in ['stand', 'walk']:
-    if key == 'stand':
-        if enemy_sprites['right'][key] is not None:
-            enemy_sprites['left'][key] = pygame.transform.flip(enemy_sprites['right'][key], True, False)
-        else:
-            enemy_sprites['left'][key] = None
-    elif key == 'walk':
-        enemy_sprites['left'][key] = []
-        for i in range(4):
-            if enemy_sprites['right'][key][i] is not None:
-                enemy_sprites['left'][key].append(pygame.transform.flip(enemy_sprites['right'][key][i], True, False))
-            else:
-                enemy_sprites['left'][key].append(None)
 
 class Enemy:
     def __init__(self, x, y):
@@ -203,6 +175,36 @@ class Enemy:
             self.attack_timer -= 1
 
     def draw(self, screen, camera_x, camera_y):
+        # Спрайты для врагов
+        enemy_sprites = {}
+        directions = ['down', 'right', 'up', 'left']
+        for dir in directions:
+            enemy_sprites[dir] = {
+                'stand': load_image(f"enemy_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                'walk': [
+                    load_image(f"enemy_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"enemy_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"enemy_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"enemy_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
+                ]
+            }
+
+        # Fallback для left: flip от right, только если right не None
+        for key in ['stand', 'walk']:
+            if key == 'stand':
+                if enemy_sprites['right'][key] is not None:
+                    enemy_sprites['left'][key] = pygame.transform.flip(enemy_sprites['right'][key], True, False)
+                else:
+                    enemy_sprites['left'][key] = None
+            elif key == 'walk':
+                enemy_sprites['left'][key] = []
+                for i in range(4):
+                    if enemy_sprites['right'][key][i] is not None:
+                        enemy_sprites['left'][key].append(
+                            pygame.transform.flip(enemy_sprites['right'][key][i], True, False))
+                    else:
+                        enemy_sprites['left'][key].append(None)
+
         draw_x = self.x - camera_x
         draw_y = self.y - camera_y
 
