@@ -1044,6 +1044,9 @@ def main():
                 # Восстановление маны со временем
                 player.mana = min(player.max_mana, player.mana + player.mana_regen_rate * dt)
 
+                #Обновление HPbar
+                if player.hp != player_health_bar.current_hp:
+                    player_health_bar.set_health(player.hp)
                 # Молния (требует 20 маны)
                 mana_cost = 20
                 if keys[pygame.K_h] and inventory.get('cooked_food', 0) > 0 and food_cooldown <= 0:

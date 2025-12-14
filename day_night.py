@@ -1,7 +1,7 @@
 import time
 
 class DayNightCycle:
-    def __init__(self, day_length=30):  # day_length in seconds
+    def __init__(self, day_length=300):  # day_length in seconds
         self.day_length = day_length
         self.start_time = time.time() - day_length * 0.25  # Начать утром (6 AM)
         self.current_time = 0
