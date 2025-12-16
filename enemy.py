@@ -1,6 +1,8 @@
 import pygame
 import random
 import os
+from sprite_manager import load_image
+from sound_manager import sound_manager  # Импортируем менеджер звуков
 
 # Constants
 ATTACK_RANGE = 50  # Радиус атаки для врагов
@@ -13,47 +15,8 @@ GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
-# Функции загрузки изображений
-def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), filename)
-    if os.path.exists(filepath):
-        try:
-            img = pygame.image.load(filepath).convert_alpha()
-            if size:
-                return pygame.transform.scale(img, size)
-            return img
-        except pygame.error:
-            print(f"Ошибка загрузки {filename}, fallback.")
-    return None
 
-# Спрайты для врагов
-enemy_sprites = {}
-directions = ['down', 'right', 'up', 'left']
-for dir in directions:
-    enemy_sprites[dir] = {
-        'stand': load_image(f"enemy_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-        'walk': [
-            load_image(f"enemy_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"enemy_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ]
-    }
 
-# Fallback для left: flip от right, только если right не None
-for key in ['stand', 'walk']:
-    if key == 'stand':
-        if enemy_sprites['right'][key] is not None:
-            enemy_sprites['left'][key] = pygame.transform.flip(enemy_sprites['right'][key], True, False)
-        else:
-            enemy_sprites['left'][key] = None
-    elif key == 'walk':
-        enemy_sprites['left'][key] = []
-        for i in range(4):
-            if enemy_sprites['right'][key][i] is not None:
-                enemy_sprites['left'][key].append(pygame.transform.flip(enemy_sprites['right'][key][i], True, False))
-            else:
-                enemy_sprites['left'][key].append(None)
 
 class Enemy:
     def __init__(self, x, y):
@@ -209,10 +172,42 @@ class Enemy:
             player.hp -= self.damage  # Предполагаем player.hp; замените на player.health если нужно
             player_health_bar.take_damage(self.damage)
             self.attack_timer = 120
+            # Воспроизводим звук удара
+            sound_manager.play_random_punch()
         elif self.attack_timer > 0:
             self.attack_timer -= 1
 
     def draw(self, screen, camera_x, camera_y):
+        # Спрайты для врагов
+        enemy_sprites = {}
+        directions = ['down', 'right', 'up', 'left']
+        for dir in directions:
+            enemy_sprites[dir] = {
+                'stand': load_image(f"enemy_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                'walk': [
+                    load_image(f"enemy_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"enemy_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"enemy_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    load_image(f"enemy_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
+                ]
+            }
+
+        # Fallback для left: flip от right, только если right не None
+        for key in ['stand', 'walk']:
+            if key == 'stand':
+                if enemy_sprites['right'][key] is not None:
+                    enemy_sprites['left'][key] = pygame.transform.flip(enemy_sprites['right'][key], True, False)
+                else:
+                    enemy_sprites['left'][key] = None
+            elif key == 'walk':
+                enemy_sprites['left'][key] = []
+                for i in range(4):
+                    if enemy_sprites['right'][key][i] is not None:
+                        enemy_sprites['left'][key].append(
+                            pygame.transform.flip(enemy_sprites['right'][key][i], True, False))
+                    else:
+                        enemy_sprites['left'][key].append(None)
+
         draw_x = self.x - camera_x
         draw_y = self.y - camera_y
 

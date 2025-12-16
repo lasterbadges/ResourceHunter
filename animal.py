@@ -1,6 +1,7 @@
 import pygame
 import random
 import os
+from sprite_manager import load_image
 
 pygame.init()
 
@@ -12,58 +13,18 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 font = pygame.font.SysFont(None, 24)
 
-def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), 'sprites', filename)
-    if os.path.exists(filepath):
-        try:
-            img = pygame.image.load(filepath).convert_alpha()
-            if size:
-                return pygame.transform.scale(img, size)
-            return img
-        except pygame.error:
-            print(f"Ошибка загрузки {filename}, fallback.")
-    return None
 
 animal_types = ['cow', 'wolf', 'sheep']
 
 # Спрайты для животных (по типам)
 animal_sprites = {}
 directions = ['down', 'right', 'up', 'left']
-for animal_type in animal_types:
-    animal_sprites[animal_type] = {}
-    for dir in directions:
-        animal_sprites[animal_type][dir] = {
-            'stand': load_image(f"{animal_type}_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            'walk': [
-                load_image(f"{animal_type}_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                load_image(f"{animal_type}_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                load_image(f"{animal_type}_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                load_image(f"{animal_type}_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-            ]
-        }
 
-# Fallback для left: flip от right, только если right не None
-for animal_type in animal_types:
-    for key in ['stand', 'walk']:
-        if key == 'stand':
-            if animal_sprites[animal_type]['right'][key] is not None:
-                animal_sprites[animal_type]['left'][key] = pygame.transform.flip(
-                    animal_sprites[animal_type]['right'][key], True, False)
-            else:
-                animal_sprites[animal_type]['left'][key] = None
-        elif key == 'walk':
-            animal_sprites[animal_type]['left'][key] = []
-            for i in range(4):
-                if animal_sprites[animal_type]['right'][key][i] is not None:
-                    animal_sprites[animal_type]['left'][key].append(
-                        pygame.transform.flip(animal_sprites[animal_type]['right'][key][i], True, False))
-                else:
-                    animal_sprites[animal_type]['left'][key].append(None)
 
 
 # Класс Animal (с типом и анимацией)
 class Animal:
-    def __init__(self, x, y, animal_type):
+    def __init__(self, x, y, animal_type, screen):
         self.x = x
         self.y = y
         self.speed = 2
@@ -74,6 +35,36 @@ class Animal:
         self.is_moving = False
         self.walk_timer = 0
         self.walk_frame = 0
+        for animal_type in animal_types:
+            animal_sprites[animal_type] = {}
+            for dir in directions:
+                animal_sprites[animal_type][dir] = {
+                    'stand': load_image(f"{animal_type}_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                    'walk': [
+                        load_image(f"{animal_type}_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                        load_image(f"{animal_type}_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                        load_image(f"{animal_type}_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
+                        load_image(f"{animal_type}_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
+                    ]
+                }
+
+        # Fallback для left: flip от right, только если right не None
+        for animal_type in animal_types:
+            for key in ['stand', 'walk']:
+                if key == 'stand':
+                    if animal_sprites[animal_type]['right'][key] is not None:
+                        animal_sprites[animal_type]['left'][key] = pygame.transform.flip(
+                            animal_sprites[animal_type]['right'][key], True, False)
+                    else:
+                        animal_sprites[animal_type]['left'][key] = None
+                elif key == 'walk':
+                    animal_sprites[animal_type]['left'][key] = []
+                    for i in range(4):
+                        if animal_sprites[animal_type]['right'][key][i] is not None:
+                            animal_sprites[animal_type]['left'][key].append(
+                                pygame.transform.flip(animal_sprites[animal_type]['right'][key][i], True, False))
+                        else:
+                            animal_sprites[animal_type]['left'][key].append(None)
 
     def move(self, resources):
         prev_x, prev_y = self.x, self.y

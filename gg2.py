@@ -10,7 +10,11 @@ from day_night import DayNightCycle
 from enemy import Enemy
 from boss import Boss, Fireball
 from animal import Animal, animal_types, animal_sprites
-
+from player import Player, PushbackWave, Lightning
+from resource import Resource
+from building_system import Building
+from sprite_manager import load_image
+from sound_manager import sound_manager
 # Инициализация Pygame
 pygame.init()
 
@@ -33,6 +37,12 @@ VISION_RANGE = 200  # Радиус, в котором враг замечает 
 BOSS_ATTACK_RANGE = 80  # Радиус атаки для босса
 BOSS_VISION_RANGE = 300  # Радиус нацеливания для босса
 BOSS_SIZE = 80
+PUSHBACK_RANGE = 120  # Радиус атаки отталкивания
+PUSHBACK_DAMAGE = 5  # Урон от отталкивания
+PUSHBACK_FORCE = 15  # Сила отталкивания
+PUSHBACK_COOLDOWN = 15000  # Перезарядка отталкивания (15 секунд)
+
+
 BUILDING_SIZE = 60  # Размер построек
 
 # Colors
@@ -58,53 +68,18 @@ font = pygame.font.SysFont(None, 24)
 # Set up the screen
 clock = pygame.time.Clock()
 
+# Загрузка текстур фона (3 ваших текстурки, assummed names: grass_tile1.png, grass_tile2.png, grass_tile3.png)
+grass_tiles = [
+    load_image("grass_tile1.png", (TILE_SIZE, TILE_SIZE)),
+    load_image("grass_tile2.png", (TILE_SIZE, TILE_SIZE)),
+    load_image("grass_tile3.png", (TILE_SIZE, TILE_SIZE))
+]
+# Удалить None если не загружено, или fallback
+grass_tiles = [tile for tile in grass_tiles if tile]
 
-# Загрузка изображений (теперь 5 фреймов: stand + 4 walk)
-def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), 'sprites', filename)
-    if os.path.exists(filepath):
-        try:
-            img = pygame.image.load(filepath).convert_alpha()
-            if size:
-                return pygame.transform.scale(img, size)
-            return img
-        except pygame.error:
-            print(f"Ошибка загрузки {filename}, fallback.")
-    return None
-
-
-player_sprites = {}
-directions = ['down', 'right', 'up', 'left']
-for dir in directions:
-    player_sprites[dir] = {
-        'stand': load_image(f"player_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-        'walk': [
-            load_image(f"player_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ],
-        'roll': [
-            load_image(f"player_{dir}_roll1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_roll2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_roll3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-            load_image(f"player_{dir}_roll4.png", (PLAYER_SIZE, PLAYER_SIZE))
-        ]
-    }
 cooldown_sprites = {'4': load_image('cooldown_4.png', size=(64, 32)), '3': load_image('cooldown_3.png', size=(64, 32)),
                     '2': load_image('cooldown_2.png', size=(64, 32)), '1': load_image('cooldown_1.png', size=(64, 32)),
                     'ready': load_image('cooldown_ready.png', size=(64, 32))}
-
-# Fallback для left: flip от right, если нет спрайтов
-for key in ['stand', 'walk', 'roll']:
-    if isinstance(player_sprites['right'][key], list):
-        for i in range(len(player_sprites['right'][key])):
-            if player_sprites['right'][key][i] is not None and not player_sprites['left'][key][i]:
-                player_sprites['left'][key][i] = pygame.transform.flip(player_sprites['right'][key][i], True, False)
-    else:
-        if player_sprites['right'][key] is not None and not player_sprites['left'][key]:
-            player_sprites['left'][key] = pygame.transform.flip(player_sprites['right'][key], True, False)
-
 
 # Функции сохранения и загрузки
 def save_game(player, inventory, tools, current_tool):
@@ -114,7 +89,8 @@ def save_game(player, inventory, tools, current_tool):
         'player_hp': player.hp,
         'inventory': inventory,
         'tools': tools,
-        'current_tool': current_tool
+        'current_tool': current_tool,
+        'pushback_cooldown': player.pushback_cooldown
     }
     with open('save.json', 'w') as f:
         json.dump(data, f)
@@ -127,254 +103,6 @@ def load_game():
         return data
     except FileNotFoundError:
         return None
-
-
-# Класс Player с обновлённой анимацией
-class Player:
-    def __init__(self):
-        self.font = font
-        self.x = WORLD_WIDTH // 2
-        self.y = WORLD_HEIGHT // 2
-        self.speed = 5
-        self.dirx = 0
-        self.diry = 0
-        self.hp = 100
-        self.hunger_timer = 0  # Таймер голода
-        self.direction = 'down'
-        self.is_moving = False
-        self.walk_timer = 0
-        self.walk_frame = 0
-        self.is_rolling = False
-        self.roll_timer = 0
-        self.roll_frame = 0
-        self.roll_duration = 0
-        self.roll_cooldown = 0
-        self.push_vx = 0
-        self.push_vy = 0
-
-    # Removed duplicate move method
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = player_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            text = self.font.render(self.direction, True, BLACK)
-            screen.blit(text, (draw_x + 5, draw_y + 5))
-
-    def move(self, keys):
-        if self.roll_cooldown > 0:
-            self.roll_cooldown -= 1
-        if self.is_rolling:
-            # Во время кувырка игнорируем новые нажатия клавиш, используем текущие dirx, diry, скорость 10
-            self.x += int(self.dirx * 10)
-            self.y += int(self.diry * 10)
-            self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, self.x))
-            self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, self.y))
-            self.is_moving = True
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-            self.roll_timer += 1
-            if self.roll_timer >= 10:
-                self.roll_timer = 0
-                self.roll_frame = (self.roll_frame + 1) % 4
-            self.roll_duration += 1
-        else:
-            prev_x, prev_y = self.x, self.y
-            self.diry = 0
-            self.dirx = 0
-            if keys[pygame.K_LEFT]:
-                self.dirx = -1
-                self.direction = 'left'
-            if keys[pygame.K_RIGHT]:
-                self.dirx = 1
-                self.direction = 'right'
-            if keys[pygame.K_UP]:
-                self.diry = -1
-                self.direction = 'up'
-            if keys[pygame.K_DOWN]:
-                self.diry = 1
-                self.direction = 'down'
-            length = (self.dirx ** 2 + self.diry ** 2) ** 0.5
-            if length > 0:
-                self.dirx /= length
-
-                self.diry /= length
-            self.x += int(self.dirx * self.speed)
-            self.y += int(self.diry * self.speed)
-            self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, self.x))
-            self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, self.y))
-
-            # Применение плавного отталкивания
-            self.x = int(self.x + self.push_vx)
-            self.y = int(self.y + self.push_vy)
-            self.push_vx *= 0.85  # Затухание
-            self.push_vy *= 0.85
-            self.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, self.x))
-            self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, self.y))
-
-            self.is_moving = (self.x != prev_x or self.y != prev_y)
-            if self.is_moving:
-                self.walk_timer += 1
-                if self.walk_timer >= 10:
-                    self.walk_frame = (self.walk_frame + 1) % 4
-                    self.walk_timer = 0
-            else:
-                self.walk_frame = 0
-            if keys[pygame.K_LSHIFT] and not self.is_rolling and self.roll_cooldown == 0:
-                self.is_rolling = True
-                self.roll_timer = 0
-                self.roll_frame = 0
-
-        if self.roll_duration >= 30:
-            self.is_rolling = False
-            self.roll_duration = 0
-            self.roll_timer = 0
-            self.roll_frame = 0
-            self.roll_cooldown = 240
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_rolling:
-            sprite = player_sprites[self.direction]['roll'][self.roll_frame]
-        elif self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = player_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            text = self.font.render(self.direction, True, BLACK)
-            screen.blit(text, (draw_x + 5, draw_y + 5))
-
-
-tree_img = load_image("tree.png", (RESOURCE_SIZE, RESOURCE_SIZE))
-rock_img = load_image("stone.png", (RESOURCE_SIZE, RESOURCE_SIZE))
-
-# Загрузка текстур фона (3 ваших текстурки, assummed names: grass_tile1.png, grass_tile2.png, grass_tile3.png)
-grass_tiles = [
-    load_image("grass_tile1.png", (TILE_SIZE, TILE_SIZE)),
-    load_image("grass_tile2.png", (TILE_SIZE, TILE_SIZE)),
-    load_image("grass_tile3.png", (TILE_SIZE, TILE_SIZE))
-]
-# Удалить None если не загружено, или fallback
-grass_tiles = [tile for tile in grass_tiles if tile]
-
-# Загрузка изображений животных (расширяемо: список типов)
-# animal_types = ['deer', 'wolf']  # Легко добавить новые, например 'bear'
-# animal_images = {atype: load_image(f"{atype}.png", (PLAYER_SIZE, PLAYER_SIZE)) for atype in animal_types}
-
-# Загрузка изображений врагов
-enemy_img = load_image("enemy.png", (PLAYER_SIZE, PLAYER_SIZE))
-
-# Загрузка текстурки молнии
-lightning_img = load_image("lightning.png", None)
-
-
-# --- НОВЫЙ КЛАСС ДЛЯ СТРОИТЕЛЬСТВА ---
-class Building:
-    def __init__(self, x, y, type_):
-        self.x = x
-        self.y = y
-        self.type = type_  # 'workbench', 'tent', 'trap', 'campfire'
-        self.size = BUILDING_SIZE
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-        if 0 <= draw_x <= screen_width and 0 <= draw_y <= screen_height:
-            if self.type == 'workbench':
-                pygame.draw.rect(screen, BLUE, (draw_x, draw_y, self.size, self.size))
-                screen.blit(font.render("W", True, WHITE), (draw_x + 10, draw_y + 10))
-            elif self.type == 'tent':
-                pygame.draw.rect(screen, YELLOW, (draw_x, draw_y, self.size, self.size))
-                # Треугольная крыша (схематично)
-                pygame.draw.polygon(screen, BROWN, [(draw_x, draw_y + self.size), (draw_x + self.size // 2, draw_y),
-                                                    (draw_x + self.size, draw_y + self.size)])
-            elif self.type == 'trap':
-                pygame.draw.rect(screen, DARK_RED, (draw_x + 10, draw_y + 30, 40, 10))
-                pygame.draw.circle(screen, GRAY, (draw_x + 30, draw_y + 35), 15, 2)
-            elif self.type == 'campfire':
-                pygame.draw.circle(screen, GRAY, (draw_x + 30, draw_y + 30), 25)
-                pygame.draw.circle(screen, ORANGE, (draw_x + 30, draw_y + 30), 15)
-                # Мерцание можно добавить в update, но здесь просто круг
-
-
-# Resource class (без изменений)
-class Resource:
-    def __init__(self, x, y, type_):
-        self.x = x
-        self.y = y
-        self.type = type_  # 'tree' or 'rock'
-        self.hp = 10
-
-    def take_damage(self, tool):
-        damage = 1
-        if self.type == 'tree' and tool == 'axe':
-            damage = 3
-        elif self.type == 'rock' and tool == 'pickaxe':
-            damage = 3
-        self.hp -= damage
-        return self.hp <= 0
-
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-        if 0 <= draw_x <= screen_width and 0 <= draw_y <= screen_height:
-            img = tree_img if self.type == 'tree' else rock_img
-            if img:
-                screen.blit(img, (draw_x, draw_y))
-            else:
-                color = BROWN if self.type == 'tree' else GRAY
-                pygame.draw.rect(screen, color, (draw_x, draw_y, RESOURCE_SIZE, RESOURCE_SIZE))
-
-
-class Lightning:
-    def __init__(self, x1, y1, x2, y2):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.frame = 0
-        self.timer = 0
-        self.lifetime = 30  # 0.5 сек
-
-    def update(self):
-        self.timer += 1
-        if self.timer % 10 == 0:
-            self.frame = (self.frame + 1) % 3
-
-    def is_expired(self):
-        return self.timer > self.lifetime
-
-    def draw(self, screen, camera_x, camera_y):
-        # Позиция в середине линии
-        mid_x = (self.x1 + self.x2) / 2
-        mid_y = (self.y1 + self.y2) / 2
-        if lightning_img:
-            # Поворот текстурки: начало (низ) к игроку, конец (верх) к цели
-            dx = self.x2 - self.x1
-            dy = self.y2 - self.y1
-            angle = math.degrees(math.atan2(dy, dx))
-            rotated_img = pygame.transform.rotate(lightning_img, angle)
-            rect = rotated_img.get_rect(center=(mid_x - camera_x, mid_y - camera_y))
-            screen.blit(rotated_img, rect)
-        else:
-            pygame.draw.rect(screen, (255, 255, 0), (mid_x - camera_x, mid_y - camera_y, 15, 50))
 
 
 button_width = 376
@@ -588,9 +316,10 @@ def handle_pause_events(events):
                 previous_state = 'pause'
                 game_state = 'settings'
                 print("Переход в настройки из паузы.")
-            elif quit_menu_button.collidepoint(mouse_pos):
+            elif quit_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение при выходе в меню
                 game_state = 'menu'
+                sound_manager.stop_music()  # Останавливаем музыку
                 print("Возврат в меню.")
 
 
@@ -634,8 +363,9 @@ def handle_game_over_events(events):
             quit_button = pygame.Rect(button_x, screen_height // 2 + 20, button_width, button_height)
 
             if respawn_button.collidepoint(mouse_pos):
-                # Respawn: сброс hp, позиция, инвентарь, инструменты
+                # Respawn: сброс hp, mana, позиция, инвентарь, инструменты
                 player.hp = 100
+                player.mana = 100  # Восстановление маны при респавне
                 player.hunger_timer = 0
                 player.x = WORLD_WIDTH // 2
                 player.y = WORLD_HEIGHT // 2
@@ -644,10 +374,12 @@ def handle_game_over_events(events):
                 tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
                 current_tool = 'hand'
                 game_state = 'game'
+                sound_manager.stop_music()
                 print("Respawned.")
             elif quit_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение
                 game_state = 'menu'
+                sound_manager.stop_music()
                 print("Quit to menu.")
 
 
@@ -658,7 +390,7 @@ def spawn_resource(existing_resources):
         x = random.randint(0, WORLD_WIDTH - RESOURCE_SIZE)
         y = random.randint(0, WORLD_HEIGHT - RESOURCE_SIZE)
         type_ = random.choice(['tree', 'rock'])
-        candidate = Resource(x, y, type_)
+        candidate = Resource(x, y, type_, screen)
         # Проверяем расстояние до существующих ресурсов
         too_close = False
         for res in existing_resources:
@@ -674,7 +406,7 @@ def spawn_resource(existing_resources):
     x = random.randint(0, WORLD_WIDTH - RESOURCE_SIZE)
     y = random.randint(0, WORLD_HEIGHT - RESOURCE_SIZE)
     type_ = random.choice(['tree', 'rock'])
-    return Resource(x, y, type_)
+    return Resource(x, y, type_, screen)
 
 
 # Spawn animal with distance check (обновлено для type)
@@ -684,7 +416,7 @@ def spawn_animal(existing_objects, animal_types):
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
         y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
         animal_type = random.choice(animal_types)
-        candidate = Animal(x, y, animal_type)
+        candidate = Animal(x, y, animal_type, screen)
         # Проверяем расстояние до ресурсов и других животных
         too_close = False
         for obj in existing_objects:
@@ -968,7 +700,7 @@ def main():
     global tools
     global current_tool
 
-    player = Player()
+    player = Player(screen)
     game_state = 'menu'
     previous_state = None
     inventory = {'wood': 0, 'stone': 0, 'food': 0, 'meat': 0, 'workbench': 0, 'tent': 0, 'trap': 0, 'campfire': 0,
@@ -978,6 +710,7 @@ def main():
     space_cooldown = 0  # **Новое: cooldown для SPACE в мс**
     lightning_cooldown = 0  # Cooldown для молнии
     lightnings = []  # Список молний
+    pushback_waves = []  # Визуальные эффекты отталкивания
     food_cooldown = 0  # Cooldown для еды
     meat_cooldown = 0  # Cooldown для мяса
     day_night_cycle = DayNightCycle()  # Система дня и ночи
@@ -990,7 +723,7 @@ def main():
 
     menu_camera_x = 0
     menu_camera_y = 0
-    menu_player = Player()  # Специальный игрок для меню
+    menu_player = Player(screen)  # Специальный игрок для меню
     menu_player.x = WORLD_WIDTH // 2
     menu_player.y = WORLD_HEIGHT // 2
 
@@ -1025,6 +758,7 @@ def main():
         inventory.update(save_data.get('inventory', {}))
         tools.update(save_data.get('tools', {}))
         current_tool = save_data.get('current_tool', current_tool)
+        player.pushback_cooldown = save_data.get('pushback_cooldown', 0)
 
     # Спавн ресурсов с проверкой расстояния
     resources = []
@@ -1161,16 +895,28 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
-                if day_night_cycle.is_day() == False and len(enemies) < 5:
+                # Управление музыкой в зависимости от времени суток
+                if day_night_cycle.is_day():
+                    if sound_manager.music_playing:
+                        sound_manager.stop_music()
+                else:
+                    # Ночь - включаем музыку только если враги начинают спавниться
+                    if len(enemies) > 0 and not sound_manager.music_playing:
+                        sound_manager.play_night_music()
 
+                if day_night_cycle.is_day() == False and len(enemies) < 5:
                     for _ in range(5):
                         new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
                         if new_enemy:
                             enemies.append(new_enemy)
+                            # Включаем ночную музыку при спавне первого врага ночью
+                            if not sound_manager.music_playing:
+                                sound_manager.play_night_music()
 
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
                 lightning_cooldown = max(0, lightning_cooldown - dt)
+                player.pushback_cooldown = max(0, player.pushback_cooldown - dt)
                 food_cooldown = max(0, food_cooldown - dt)
                 meat_cooldown = max(0, meat_cooldown - dt)
 
@@ -1266,6 +1012,7 @@ def main():
                             if not collides:
                                 buildings.append(Building(world_mx - 30, world_my - 30, item_to_build))
                                 inventory[item_to_build] -= 1
+                                sound_manager.play_sound('build')
                                 pygame.time.wait(200)
 
                 # ВЗАИМОДЕЙСТВИЕ С ПОСТРОЙКАМИ (E)
@@ -1310,7 +1057,14 @@ def main():
                     inventory['meat'] -= 1
                     meat_cooldown = 200
 
-                # Поедание приготовленной еды (клавиша H)
+                # Восстановление маны со временем
+                player.mana = min(player.max_mana, player.mana + player.mana_regen_rate * dt)
+
+                #Обновление HPbar
+                if player.hp != player_health_bar.current_hp:
+                    player_health_bar.set_health(player.hp)
+                # Молния (требует 20 маны)
+                mana_cost = 20
                 if keys[pygame.K_h] and inventory.get('cooked_food', 0) > 0 and food_cooldown <= 0:
                     player.hp = min(100, player.hp + 50)
                     inventory['cooked_food'] -= 1
@@ -1336,6 +1090,8 @@ def main():
                             min_dist = dist
                             closest = animal
                     if closest:
+                        sound_manager.play_sound('lightning')
+                        player.mana -= mana_cost  # Тратим ману
                         damage = random.randint(15, 20)
                         closest.hp -= damage
                         if closest.hp <= 0:
@@ -1355,7 +1111,11 @@ def main():
                         target_size = closest.size if hasattr(closest, 'size') else PLAYER_SIZE
                         lightnings.append(Lightning(player.x + PLAYER_SIZE // 2, player.y + PLAYER_SIZE // 2,
                                                     closest.x + target_size // 2, closest.y + target_size // 2))
-                        lightning_cooldown = 20000  # 20 сек
+                        lightning_cooldown = 5000  # 5 сек (уменьшил, так как теперь есть ограничение маны)
+
+                # Отталкивание (клавиша E) - не тратит ману, перезарядка 15 сек
+                if keys[pygame.K_e] and player.pushback_cooldown <= 0:
+                    player.pushback(enemies, animals, bosses, pushback_waves, inventory, resources, day_night_cycle)
 
                 # Обновление движения животных перед player.move
                 # ЛОГИКА КАПКАНОВ
@@ -1400,7 +1160,7 @@ def main():
                     fireball.move()
                     # Коллизия с игроком
                     if abs(fireball.x - player.x) < PLAYER_SIZE and abs(fireball.y - player.y) < PLAYER_SIZE:
-                        player.hp -= 20
+                        player.hp -= 30
                         fireballs.remove(fireball)
                         continue
                     # Удалить если вышел за границы или истекло время
@@ -1412,6 +1172,12 @@ def main():
                     lightning.update()
                     if lightning.is_expired():
                         lightnings.remove(lightning)
+
+                # Обновление эффектов отталкивания
+                for wave in pushback_waves[:]:
+                    wave.update()
+                    if wave.is_expired():
+                        pushback_waves.remove(wave)
 
                 if player.hp <= 0:
                     game_state = 'game_over'
@@ -1427,6 +1193,7 @@ def main():
                     if player_rect.colliderect(res_rect) and keys[pygame.K_SPACE] and space_cooldown <= 0:
                         print(f"DEBUG: Colliding with resource at ({res.x}, {res.y}), type: {res.type}")
                         if res.take_damage(current_tool):
+                            sound_manager.play_sound('destroying')
                             if res.type == 'tree':
                                 inventory['wood'] += 1
                             elif res.type == 'rock':
@@ -1444,6 +1211,7 @@ def main():
                     animal_rect = pygame.Rect(animal.x, animal.y, PLAYER_SIZE, PLAYER_SIZE)
                     if player_rect.colliderect(animal_rect) and keys[pygame.K_SPACE] and space_cooldown <= 0:
                         print(f"DEBUG: Colliding with animal at ({animal.x}, {animal.y}), type: {animal.type}")
+                        sound_manager.play_random_punch()
                         damage = 5 if current_tool == 'sword' else 1
                         animal.hp -= damage
                         if animal.hp <= 0:
@@ -1460,6 +1228,7 @@ def main():
                     distance = ((player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2) ** 0.5
                     if distance <= ATTACK_RANGE and keys[pygame.K_SPACE] and space_cooldown <= 0:
                         print(f"DEBUG: Attacking enemy at ({enemy.x}, {enemy.y}), distance: {distance}")
+                        sound_manager.play_random_punch()
                         damage = 5 if current_tool == 'sword' else 2
                         enemy.hp -= damage
                         if enemy.hp <= 0:
@@ -1476,6 +1245,7 @@ def main():
                 for boss in bosses[:]:
                     distance = ((player.x - boss.x) ** 2 + (player.y - boss.y) ** 2) ** 0.5
                     if distance <= boss.size and keys[pygame.K_SPACE] and space_cooldown <= 0:
+                        sound_manager.play_random_punch()
                         damage = 5 if current_tool == 'sword' else 2
                         boss.hp -= damage
                         if boss.hp <= 0:
@@ -1497,6 +1267,8 @@ def main():
                     fireball.draw(screen, camera_x, camera_y)
                 for lightning in lightnings:
                     lightning.draw(screen, camera_x, camera_y)
+                for wave in pushback_waves:
+                    wave.draw(screen, camera_x, camera_y)
 
                 player.draw(screen, camera_x, camera_y)
 
@@ -1512,7 +1284,7 @@ def main():
                 light_intensity = day_night_cycle.get_light_intensity()
                 if light_intensity < 1:  # Рисовать оверлей только если не полный день
                     darkness = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-                    darkness.fill((0, 0, 0, 240))
+                    darkness.fill((0, 0, 0, 240 - 240 * light_intensity))
 
                     def create_circle_mask(radius):
                         size = radius * 2
@@ -1552,13 +1324,39 @@ def main():
                     screen.blit(font.render(tool_text, True, BLACK), (10, 10))
                     health_text = f"Здоровье: {player.hp}"
                     screen.blit(font.render(health_text, True, BLACK), (10, 40))
+                    mana_text = f"Мана: {int(player.mana)}/{player.max_mana}"
+                    screen.blit(font.render(mana_text, True, (0, 0, 200)), (10, 70))  # Синий цвет для маны
                     time_text = f"Время: {'День' if day_night_cycle.is_day() else 'Ночь'}"
-                    screen.blit(font.render(time_text, True, BLACK), (10, 70))
+                    screen.blit(font.render(time_text, True, BLACK), (10, 100))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
+                    screen.blit(font.render(pos_text, True, BLACK), (10, 130))
+                    hint_text = "I-инвентарь, C-крафт, Q-молния, E-отталк."
+                    screen.blit(font.render(hint_text, True, BLACK), (10, 160))
+                    
+                    # Показываем cooldown отталкивания
+                    if player.pushback_cooldown > 0:
+                        pushback_cd_text = f"Отталкивание: {int(player.pushback_cooldown / 1000)}с"
+                        screen.blit(font.render(pushback_cd_text, True, (150, 75, 0)), (10, 185))
+                    else:
+                        screen.blit(font.render("Отталкивание: готово", True, (0, 150, 0)), (10, 185))
+                    
                     screen.blit(font.render(pos_text, True, BLACK), (10, 100))
                     hint_text = font.render("I-Инв, C-Крафт, B-Стройка, E-Действ, H-Еда", True, BLACK)
                     screen.blit(hint_text, (10, 130))
                     player_health_bar.draw(screen)
+                    
+                    # Полоска маны под полоской здоровья
+                    mana_bar_width = 150
+                    mana_bar_height = 15
+                    mana_bar_x = BAR_X + 75  # Смещение для центрирования под healthbar
+                    mana_bar_y = BAR_Y + BAR_HEIGHT + 5
+                    # Фон полоски маны
+                    pygame.draw.rect(screen, (50, 50, 100), (mana_bar_x, mana_bar_y, mana_bar_width, mana_bar_height))
+                    # Заполнение полоски маны
+                    mana_fill_width = int((player.mana / player.max_mana) * mana_bar_width)
+                    pygame.draw.rect(screen, (0, 100, 255), (mana_bar_x, mana_bar_y, mana_fill_width, mana_bar_height))
+                    # Рамка полоски маны
+                    pygame.draw.rect(screen, (0, 0, 150), (mana_bar_x, mana_bar_y, mana_bar_width, mana_bar_height), 2)
 
                 # Рисуем меню инвентаря (если открыто)
                 if inventory_open:
