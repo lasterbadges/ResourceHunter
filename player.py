@@ -3,7 +3,7 @@ import math
 from animal import Animal
 from enemy import Enemy
 from sprite_manager import load_image
-
+from sound_manager import sound_manager  # Импортируем менеджер звуков
 
 screen_width = 800
 screen_height = 800
@@ -272,6 +272,9 @@ class Player:
         # Создаём визуальный эффект
         pushback_waves.append(PushbackWave(player_center_x, player_center_y))
 
+        # Воспроизводим звук удара при отталкивании
+        sound_manager.play_random_punch()
+
         # Отталкиваем врагов (не боссов)
         for enemy in enemies[:]:
             enemy_center_x = enemy.x + PLAYER_SIZE // 2
@@ -351,4 +354,3 @@ class Player:
             screen.blit(sprite, (draw_x, draw_y))
         else:
             pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-

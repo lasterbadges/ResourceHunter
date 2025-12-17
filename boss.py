@@ -2,6 +2,7 @@ import pygame
 import random
 import os
 import math
+from sound_manager import sound_manager  # Импортируем менеджер звуков
 
 # Constants
 BOSS_SIZE = 80
@@ -226,6 +227,8 @@ class Boss:
         if distance <= self.attack_range and self.attack_timer <= 0:
             player.hp -= self.damage
             self.attack_timer = attack_cooldown
+            # Воспроизводим звук удара
+            sound_manager.play_random_punch()
         elif self.attack_timer > 0:
             self.attack_timer -= 1
 
@@ -302,6 +305,8 @@ class Boss:
                     player_dist = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
                     if player_dist <= self.dash_area:
                         player.hp -= self.dash_damage
+                        # Воспроизводим звук удара при dash атаке
+                        sound_manager.play_random_punch()
         elif self.dash_timer > 0:
             self.dash_timer -= 1
 

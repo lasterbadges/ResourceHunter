@@ -2,6 +2,7 @@ import pygame
 import random
 import os
 from sprite_manager import load_image
+from sound_manager import sound_manager  # Импортируем менеджер звуков
 
 # Constants
 ATTACK_RANGE = 50  # Радиус атаки для врагов
@@ -171,6 +172,8 @@ class Enemy:
             player.hp -= self.damage  # Предполагаем player.hp; замените на player.health если нужно
             player_health_bar.take_damage(self.damage)
             self.attack_timer = 120
+            # Воспроизводим звук удара
+            sound_manager.play_random_punch()
         elif self.attack_timer > 0:
             self.attack_timer -= 1
 

@@ -14,6 +14,7 @@ from player import Player, PushbackWave, Lightning
 from resource import Resource
 from building_system import Building
 from sprite_manager import load_image
+from sound_manager import sound_manager
 # Инициализация Pygame
 pygame.init()
 
@@ -318,6 +319,7 @@ def handle_pause_events(events):
             elif quit_menu_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение при выходе в меню
                 game_state = 'menu'
+                sound_manager.stop_music()  # Останавливаем музыку
                 print("Возврат в меню.")
 
 
@@ -372,10 +374,12 @@ def handle_game_over_events(events):
                 tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
                 current_tool = 'hand'
                 game_state = 'game'
+                sound_manager.stop_music()
                 print("Respawned.")
             elif quit_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение
                 game_state = 'menu'
+                sound_manager.stop_music()
                 print("Quit to menu.")
 
 
@@ -891,12 +895,23 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
-                if day_night_cycle.is_day() == False and len(enemies) < 5:
+                # Управление музыкой в зависимости от времени суток
+                if day_night_cycle.is_day():
+                    if sound_manager.music_playing:
+                        sound_manager.stop_music()
+                else:
+                    # Ночь - включаем музыку только если враги начинают спавниться
+                    if len(enemies) > 0 and not sound_manager.music_playing:
+                        sound_manager.play_night_music()
 
+                if day_night_cycle.is_day() == False and len(enemies) < 5:
                     for _ in range(5):
                         new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
                         if new_enemy:
                             enemies.append(new_enemy)
+                            # Включаем ночную музыку при спавне первого врага ночью
+                            if not sound_manager.music_playing:
+                                sound_manager.play_night_music()
 
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
@@ -997,6 +1012,7 @@ def main():
                             if not collides:
                                 buildings.append(Building(world_mx - 30, world_my - 30, item_to_build))
                                 inventory[item_to_build] -= 1
+                                sound_manager.play_sound('build')
                                 pygame.time.wait(200)
 
                 # ВЗАИМОДЕЙСТВИЕ С ПОСТРОЙКАМИ (E)
@@ -1074,6 +1090,7 @@ def main():
                             min_dist = dist
                             closest = animal
                     if closest:
+                        sound_manager.play_sound('lightning')
                         player.mana -= mana_cost  # Тратим ману
                         damage = random.randint(15, 20)
                         closest.hp -= damage
@@ -1176,6 +1193,7 @@ def main():
                     if player_rect.colliderect(res_rect) and keys[pygame.K_SPACE] and space_cooldown <= 0:
                         print(f"DEBUG: Colliding with resource at ({res.x}, {res.y}), type: {res.type}")
                         if res.take_damage(current_tool):
+                            sound_manager.play_sound('destroying')
                             if res.type == 'tree':
                                 inventory['wood'] += 1
                             elif res.type == 'rock':
@@ -1193,6 +1211,7 @@ def main():
                     animal_rect = pygame.Rect(animal.x, animal.y, PLAYER_SIZE, PLAYER_SIZE)
                     if player_rect.colliderect(animal_rect) and keys[pygame.K_SPACE] and space_cooldown <= 0:
                         print(f"DEBUG: Colliding with animal at ({animal.x}, {animal.y}), type: {animal.type}")
+                        sound_manager.play_random_punch()
                         damage = 5 if current_tool == 'sword' else 1
                         animal.hp -= damage
                         if animal.hp <= 0:
@@ -1209,6 +1228,7 @@ def main():
                     distance = ((player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2) ** 0.5
                     if distance <= ATTACK_RANGE and keys[pygame.K_SPACE] and space_cooldown <= 0:
                         print(f"DEBUG: Attacking enemy at ({enemy.x}, {enemy.y}), distance: {distance}")
+                        sound_manager.play_random_punch()
                         damage = 5 if current_tool == 'sword' else 2
                         enemy.hp -= damage
                         if enemy.hp <= 0:
@@ -1225,6 +1245,7 @@ def main():
                 for boss in bosses[:]:
                     distance = ((player.x - boss.x) ** 2 + (player.y - boss.y) ** 2) ** 0.5
                     if distance <= boss.size and keys[pygame.K_SPACE] and space_cooldown <= 0:
+                        sound_manager.play_random_punch()
                         damage = 5 if current_tool == 'sword' else 2
                         boss.hp -= damage
                         if boss.hp <= 0:
@@ -1299,18 +1320,7 @@ def main():
 
                 # UI (только если меню закрыты)
                 if not inventory_open and not craft_open and not workbench_menu_open:
-                    tool_text = f"Инструмент: {current_tool}"
-                    screen.blit(font.render(tool_text, True, BLACK), (10, 10))
-                    health_text = f"Здоровье: {player.hp}"
-                    screen.blit(font.render(health_text, True, BLACK), (10, 40))
-                    mana_text = f"Мана: {int(player.mana)}/{player.max_mana}"
-                    screen.blit(font.render(mana_text, True, (0, 0, 200)), (10, 70))  # Синий цвет для маны
-                    time_text = f"Время: {'День' if day_night_cycle.is_day() else 'Ночь'}"
-                    screen.blit(font.render(time_text, True, BLACK), (10, 100))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
-                    screen.blit(font.render(pos_text, True, BLACK), (10, 130))
-                    hint_text = "I-инвентарь, C-крафт, Q-молния, E-отталк."
-                    screen.blit(font.render(hint_text, True, BLACK), (10, 160))
                     
                     # Показываем cooldown отталкивания
                     if player.pushback_cooldown > 0:
@@ -1320,8 +1330,7 @@ def main():
                         screen.blit(font.render("Отталкивание: готово", True, (0, 150, 0)), (10, 185))
                     
                     screen.blit(font.render(pos_text, True, BLACK), (10, 100))
-                    hint_text = font.render("I-Инв, C-Крафт, B-Стройка, E-Действ, H-Еда", True, BLACK)
-                    screen.blit(hint_text, (10, 130))
+                    
                     player_health_bar.draw(screen)
                     
                     # Полоска маны под полоской здоровья
