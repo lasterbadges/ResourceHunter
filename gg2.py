@@ -1320,18 +1320,7 @@ def main():
 
                 # UI (только если меню закрыты)
                 if not inventory_open and not craft_open and not workbench_menu_open:
-                    tool_text = f"Инструмент: {current_tool}"
-                    screen.blit(font.render(tool_text, True, BLACK), (10, 10))
-                    health_text = f"Здоровье: {player.hp}"
-                    screen.blit(font.render(health_text, True, BLACK), (10, 40))
-                    mana_text = f"Мана: {int(player.mana)}/{player.max_mana}"
-                    screen.blit(font.render(mana_text, True, (0, 0, 200)), (10, 70))  # Синий цвет для маны
-                    time_text = f"Время: {'День' if day_night_cycle.is_day() else 'Ночь'}"
-                    screen.blit(font.render(time_text, True, BLACK), (10, 100))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
-                    screen.blit(font.render(pos_text, True, BLACK), (10, 130))
-                    hint_text = "I-инвентарь, C-крафт, Q-молния, E-отталк."
-                    screen.blit(font.render(hint_text, True, BLACK), (10, 160))
                     
                     # Показываем cooldown отталкивания
                     if player.pushback_cooldown > 0:
@@ -1341,8 +1330,7 @@ def main():
                         screen.blit(font.render("Отталкивание: готово", True, (0, 150, 0)), (10, 185))
                     
                     screen.blit(font.render(pos_text, True, BLACK), (10, 100))
-                    hint_text = font.render("I-Инв, C-Крафт, B-Стройка, E-Действ, H-Еда", True, BLACK)
-                    screen.blit(hint_text, (10, 130))
+                    
                     player_health_bar.draw(screen)
                     
                     # Полоска маны под полоской здоровья
