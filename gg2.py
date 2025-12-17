@@ -316,7 +316,7 @@ def handle_pause_events(events):
                 previous_state = 'pause'
                 game_state = 'settings'
                 print("Переход в настройки из паузы.")
-            elif quit_button.collidepoint(mouse_pos):
+            elif quit_menu_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение при выходе в меню
                 game_state = 'menu'
                 sound_manager.stop_music()  # Останавливаем музыку
