@@ -41,6 +41,7 @@ PUSHBACK_RANGE = 120  # Радиус атаки отталкивания
 PUSHBACK_DAMAGE = 5  # Урон от отталкивания
 PUSHBACK_FORCE = 15  # Сила отталкивания
 PUSHBACK_COOLDOWN = 15000  # Перезарядка отталкивания (15 секунд)
+day_music_played = False
 
 
 BUILDING_SIZE = 60  # Размер построек
@@ -316,7 +317,7 @@ def handle_pause_events(events):
                 previous_state = 'pause'
                 game_state = 'settings'
                 print("Переход в настройки из паузы.")
-            elif quit_button.collidepoint(mouse_pos):
+            elif quit_menu_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение при выходе в меню
                 game_state = 'menu'
                 sound_manager.stop_music()  # Останавливаем музыку
@@ -895,14 +896,28 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
+
+                # Обновление звукового менеджера (для плавных переходов)
+                sound_manager.update()
+
                 # Управление музыкой в зависимости от времени суток
-                if day_night_cycle.is_day():
-                    if sound_manager.music_playing:
-                        sound_manager.stop_music()
+                is_daytime = day_night_cycle.is_day()
+
+                if is_daytime:
+                    # День - включаем дневную музыку
+                    if not sound_manager.music_playing or sound_manager.current_music != 'day':
+                        sound_manager.play_day_music()
+                        day_music_played = True
                 else:
-                    # Ночь - включаем музыку только если враги начинают спавниться
-                    if len(enemies) > 0 and not sound_manager.music_playing:
-                        sound_manager.play_night_music()
+                    # Ночь - проверяем, есть ли враги для ночной музыки
+                    if len(enemies) > 0:
+                        # Есть враги - включаем ночную музыку
+                        if not sound_manager.music_playing or sound_manager.current_music != 'night':
+                            sound_manager.play_night_music()
+                    else:
+                        # Нет врагов - плавно выключаем музыку
+                        if sound_manager.music_playing and sound_manager.current_music == 'night':
+                            sound_manager.stop_music_fade()
 
                 if day_night_cycle.is_day() == False and len(enemies) < 5:
                     for _ in range(5):
@@ -910,7 +925,7 @@ def main():
                         if new_enemy:
                             enemies.append(new_enemy)
                             # Включаем ночную музыку при спавне первого врага ночью
-                            if not sound_manager.music_playing:
+                            if not sound_manager.music_playing or sound_manager.current_music != 'night':
                                 sound_manager.play_night_music()
 
                 # Обновление cooldown для SPACE
@@ -1320,18 +1335,7 @@ def main():
 
                 # UI (только если меню закрыты)
                 if not inventory_open and not craft_open and not workbench_menu_open:
-                    tool_text = f"Инструмент: {current_tool}"
-                    screen.blit(font.render(tool_text, True, BLACK), (10, 10))
-                    health_text = f"Здоровье: {player.hp}"
-                    screen.blit(font.render(health_text, True, BLACK), (10, 40))
-                    mana_text = f"Мана: {int(player.mana)}/{player.max_mana}"
-                    screen.blit(font.render(mana_text, True, (0, 0, 200)), (10, 70))  # Синий цвет для маны
-                    time_text = f"Время: {'День' if day_night_cycle.is_day() else 'Ночь'}"
-                    screen.blit(font.render(time_text, True, BLACK), (10, 100))
                     pos_text = f"Позиция: ({player.x}, {player.y})"
-                    screen.blit(font.render(pos_text, True, BLACK), (10, 130))
-                    hint_text = "I-инвентарь, C-крафт, Q-молния, E-отталк."
-                    screen.blit(font.render(hint_text, True, BLACK), (10, 160))
                     
                     # Показываем cooldown отталкивания
                     if player.pushback_cooldown > 0:
@@ -1341,8 +1345,7 @@ def main():
                         screen.blit(font.render("Отталкивание: готово", True, (0, 150, 0)), (10, 185))
                     
                     screen.blit(font.render(pos_text, True, BLACK), (10, 100))
-                    hint_text = font.render("I-Инв, C-Крафт, B-Стройка, E-Действ, H-Еда", True, BLACK)
-                    screen.blit(hint_text, (10, 130))
+                    
                     player_health_bar.draw(screen)
                     
                     # Полоска маны под полоской здоровья
