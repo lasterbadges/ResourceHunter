@@ -28,7 +28,6 @@ class SoundManager:
             # Создаем список звуков ударов
             self.sounds['punch'] = [
                 pygame.mixer.Sound("sounds/punch1.mp3"),
-                pygame.mixer.Sound("sounds/punch2.mp3"),
                 pygame.mixer.Sound("sounds/punch3.mp3")
             ]
             for punch_sound in self.sounds['punch']:
