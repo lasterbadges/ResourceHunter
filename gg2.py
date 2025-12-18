@@ -10,6 +10,7 @@ from day_night import DayNightCycle
 from enemy import Enemy
 from boss import Boss, Fireball
 from animal import Animal, animal_types
+from Mops import Mops, mops_type
 from player import Player, PushbackWave, Lightning
 from resource import Resource
 from building_system import Building
@@ -118,7 +119,7 @@ button_height = 103
 button_x = screen_width // 2 - button_width // 2
 
 
-def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
+def draw_menu(player, resources, animals, mops, enemies, camera_x, camera_y):
     # Отрисовываем геймплей в качестве фона меню
     screen.fill(GRASS_GREEN)
 
@@ -152,6 +153,8 @@ def draw_menu(player, resources, animals, enemies, camera_x, camera_y):
         res.draw(screen, camera_x, camera_y)
     for animal in animals:
         animal.draw(screen, camera_x, camera_y)
+    for mops_obj in mops:
+        mops_obj.draw(screen, camera_x, camera_y)
     for enemy in enemies:
         enemy.draw(screen, camera_x, camera_y)
     player.draw(screen, camera_x, camera_y)
@@ -309,9 +312,8 @@ def draw_pause():
 def handle_pause_events(events):
     global game_state, previous_state, inventory, tools, current_tool, player
     for event in events:
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_pos = pygame.mouse.get_pos()
-            # Определение прямоугольников кнопок (должны совпадать с draw_pause)
             button_width = 200
             button_height = 50
             button_x = screen_width // 2 - button_width // 2
@@ -319,18 +321,19 @@ def handle_pause_events(events):
             settings_button = pygame.Rect(button_x, screen_height // 2 + 20, button_width, button_height)
             quit_menu_button = pygame.Rect(button_x, screen_height // 2 + 90, button_width, button_height)
 
-            # Проверка коллизий и изменение состояния
             if resume_button.collidepoint(mouse_pos):
                 game_state = 'game'
+                # Возобновляем музыку при выходе из паузы
+                sound_manager.unpause_music()
                 print("Возобновление игры.")
             elif settings_button.collidepoint(mouse_pos):
                 previous_state = 'pause'
                 game_state = 'settings'
                 print("Переход в настройки из паузы.")
             elif quit_menu_button.collidepoint(mouse_pos):
-                save_game(player, inventory, tools, current_tool)  # Сохранение при выходе в меню
+                save_game(player, inventory, tools, current_tool)
                 game_state = 'menu'
-                sound_manager.stop_music()  # Останавливаем музыку
+                sound_manager.stop_music()
                 print("Возврат в меню.")
 
 
@@ -385,14 +388,16 @@ def handle_game_over_events(events):
                 tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
                 current_tool = 'hand'
                 game_state = 'game'
-                sound_manager.stop_music()
-                print("Respawned.")
+
+                # ВАЖНО: Сбросить флаг game over и подготовить систему для новой музыки
+                sound_manager.reset_for_new_game()
+                print("Respawned. Музыка будет включена автоматически.")
+
             elif quit_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение
                 game_state = 'menu'
                 sound_manager.stop_music()
                 print("Quit to menu.")
-
 
 # Spawn resource with distance check
 def spawn_resource(existing_resources):
@@ -445,6 +450,30 @@ def spawn_animal(existing_objects, animal_types):
     animal_type = random.choice(animal_types)
     return Animal(x, y, animal_type)
 
+# Spawn mops with distance check (обновлено для type)
+def spawn_mops(existing_objects, mops_type):
+    attempts = 100
+    for _ in range(attempts):
+        x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
+        y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
+        mops_type = random.choice(mops_type)
+        candidate = Mops(x, y, mops_type, screen)
+        # Проверяем расстояние до ресурсов и других животных
+        too_close = False
+        for obj in existing_objects:
+            dx = candidate.x - obj.x
+            dy = candidate.y - obj.y
+            distance = (dx ** 2 + dy ** 2) ** 0.5
+            if distance < MIN_DISTANCE:
+                too_close = True
+                break
+        if not too_close:
+            return candidate
+    # Если не удалось, спавним в любом случае
+    x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
+    y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
+    mops_type = random.choice(mops_type)
+    return Mops(x, y, mops_type)
 
 # Spawn enemy (аналогично)
 def spawn_enemy(existing_objects, day_night_cycle=None):
@@ -785,9 +814,14 @@ def main():
         new_animal = spawn_animal(menu_resources + menu_animals, animal_types)
         menu_animals.append(new_animal)
 
+    menu_mops = []
+    for _ in range(5):
+        new_mops = spawn_mops(menu_resources + menu_animals + menu_mops, mops_type)
+        menu_mops.append(new_mops)
+
     menu_enemies = []
     for _ in range(5):
-        new_enemy = spawn_enemy(menu_resources + menu_animals + menu_enemies)
+        new_enemy = spawn_enemy(menu_resources + menu_animals + menu_mops + menu_enemies)
         menu_enemies.append(new_enemy)
 
     # Инициализируем камеру меню
@@ -812,6 +846,12 @@ def main():
         print(f"Loaded tools: {tools}")
         print(f"Loaded current tool: {current_tool}")
 
+    # Восстановление музыки при загрузке сохранения
+    if game_state == 'game':
+        # Не запускаем музыку здесь - она запустится в основном игровом цикле
+        # когда обработается система дня/ночи
+        pass
+
     # Спавн ресурсов с проверкой расстояния
     resources = []
     for _ in range(40):
@@ -824,16 +864,22 @@ def main():
         new_animal = spawn_animal(resources + animals, animal_types)
         animals.append(new_animal)
 
+    # Спавн мопсов с проверкой расстояния
+    mops = []
+    for _ in range(5):  # 5 мопсов
+        new_mops = spawn_mops(resources + animals + mops, mops_type)
+        mops.append(new_mops)
+
     # Спавн врагов
     enemies = []
     for _ in range(5):
-        new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+        new_enemy = spawn_enemy(resources + animals + mops + enemies, day_night_cycle)
         if new_enemy:
             enemies.append(new_enemy)
 
     # Спавн босса
     bosses = []
-    new_boss = spawn_boss(resources + animals + enemies + bosses)
+    new_boss = spawn_boss(resources + animals + mops + enemies + bosses)
     if new_boss:
         bosses.append(new_boss)
         print("Босс появился в мире!")
@@ -928,7 +974,11 @@ def main():
             for animal in menu_animals:
                 animal.move(menu_resources)
 
-            # 3. Обновляем движение врагов
+            # 3. Обновляем движение мопсов
+            for mops_obj in menu_mops:
+                mops_obj.move(menu_resources)
+
+            # 4. Обновляем движение врагов
             for enemy in menu_enemies:
                 # В меню они просто бродят
                 enemy.move_randomly(menu_resources, menu_enemies, menu_player)
@@ -937,7 +987,7 @@ def main():
             menu_camera_x, menu_camera_y = update_camera(menu_player, menu_camera_x, menu_camera_y)
 
             # 5. Отрисовка фона меню
-            draw_menu(menu_player, menu_resources, menu_animals, menu_enemies, menu_camera_x, menu_camera_y)
+            draw_menu(menu_player, menu_resources, menu_animals, menu_mops, menu_enemies, menu_camera_x, menu_camera_y)
         elif game_state == 'settings':
             handle_settings_events(events)
         elif game_state == 'pause':
@@ -956,23 +1006,52 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
-                # Управление музыкой в зависимости от времени суток
-                if day_night_cycle.is_day():
-                    if sound_manager.music_playing:
-                        sound_manager.stop_music()
-                else:
-                    # Ночь - включаем музыку только если враги начинают спавниться
-                    if len(enemies) > 0 and not sound_manager.music_playing:
-                        sound_manager.play_night_music()
 
-                if day_night_cycle.is_day() == False and len(enemies) < 5:
+                # Обновление звукового менеджера
+                sound_manager.update()
+
+                # Управление музыкой в зависимости от времени суток
+                is_daytime = day_night_cycle.is_day()
+                time_of_day = day_night_cycle.get_time_of_day()
+
+                if game_state == 'game_over':
+                    # Музыка уже остановлена в set_game_over(True)
+                    pass
+                elif is_daytime:
+                    # ДЕНЬ
+                    if sound_manager.current_music != 'day':
+                        sound_manager.play_day_music()
+                    else:
+                        # Плавное изменение громкости в течение дня
+                        if time_of_day < 0.3:  # Утро
+                            volume_factor = (time_of_day - 0.25) / 0.05 if time_of_day > 0.25 else 0
+                            sound_manager.target_volume = sound_manager.day_music_volume * volume_factor
+                        elif time_of_day > 0.7:  # Вечер
+                            fade_factor = 1.0 - ((time_of_day - 0.7) / 0.05)
+                            sound_manager.target_volume = sound_manager.day_music_volume * fade_factor
+                        else:  # Полдень
+                            sound_manager.target_volume = sound_manager.day_music_volume
+                else:
+                    # НОЧЬ - музыка играет ВСЕГДА
+                    if sound_manager.current_music != 'night':
+                        sound_manager.play_night_music()
+                    else:
+                        # Плавное изменение громкости в течение ночи
+                        if time_of_day < 0.3:  # Ранняя ночь
+                            fade_factor = (time_of_day - 0.25) / 0.05 if time_of_day > 0.25 else 0
+                            sound_manager.target_volume = sound_manager.night_music_volume * fade_factor
+                        elif time_of_day > 0.7:  # Поздняя ночь
+                            fade_factor = 1.0 - ((time_of_day - 0.7) / 0.05)
+                            sound_manager.target_volume = sound_manager.night_music_volume * fade_factor
+                        else:  # Полночь
+                            sound_manager.target_volume = sound_manager.night_music_volume
+
+                # Спавн врагов ночью
+                if not is_daytime and len(enemies) < 5:
                     for _ in range(5):
-                        new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                        new_enemy = spawn_enemy(resources + animals + mops + enemies, day_night_cycle)
                         if new_enemy:
                             enemies.append(new_enemy)
-                            # Включаем ночную музыку при спавне первого врага ночью
-                            if not sound_manager.music_playing:
-                                sound_manager.play_night_music()
 
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
@@ -988,6 +1067,7 @@ def main():
                     player.hunger_timer = 0
                     if player.hp <= 0:
                         game_state = 'game_over'
+                        sound_manager.set_game_over(True)
 
                 screen.fill(GRASS_GREEN)
 
@@ -1030,6 +1110,7 @@ def main():
                         building_mode = False
                     else:
                         game_state = 'pause'
+                        sound_manager.pause_music()
                         print("Transitioning to pause state")
                     pygame.time.wait(200)
 
@@ -1149,6 +1230,11 @@ def main():
                         if dist < min_dist:
                             min_dist = dist
                             closest = animal
+                    for mops_obj in mops:
+                        dist = ((player.x - mops_obj.x) ** 2 + (player.y - mops_obj.y) ** 2) ** 0.5
+                        if dist < min_dist:
+                            min_dist = dist
+                            closest = mops_obj
                     if closest:
                         sound_manager.play_sound('lightning')
                         player.mana -= mana_cost  # Тратим ману
@@ -1160,10 +1246,15 @@ def main():
                                 animals.remove(closest)
                                 new_animal = spawn_animal(resources + animals, animal_types)
                                 animals.append(new_animal)
+                            elif isinstance(closest, Mops):
+                                inventory['meat'] += 1
+                                mops.remove(closest)
+                                new_mops = spawn_mops(resources + animals + mops, mops_type)
+                                mops.append(new_mops)
                             elif isinstance(closest, Enemy):
                                 inventory['meat'] += 1
                                 enemies.remove(closest)
-                                new_enemy = spawn_enemy(resources + animals + enemies, day_night_cycle)
+                                new_enemy = spawn_enemy(resources + animals + mops + enemies, day_night_cycle)
                                 if new_enemy:
                                     enemies.append(new_enemy)
                             elif isinstance(closest, Boss):
@@ -1175,7 +1266,7 @@ def main():
 
                 # Отталкивание (клавиша E) - не тратит ману, перезарядка 15 сек
                 if keys[pygame.K_e] and player.pushback_cooldown <= 0:
-                    player.pushback(enemies, animals, bosses, pushback_waves, inventory, resources, day_night_cycle)
+                    player.pushback(enemies, animals, mops, bosses, pushback_waves, inventory, resources, day_night_cycle)
 
                 # Обновление движения животных перед player.move
                 # ЛОГИКА КАПКАНОВ
@@ -1195,6 +1286,10 @@ def main():
                                 buildings.remove(b)  # Капкан срабатывает и исчезает
                                 print("Капкан сработал!")
                                 break
+
+                # Обновление движения мопсов
+                for mops_obj in mops[:]:
+                    mops_obj.move(resources)
 
                 # Обновление движения и атаки врагов
                 for enemy in enemies[:]:
@@ -1244,6 +1339,8 @@ def main():
 
                 player.move(keys)
 
+                sound_manager.update_player_position(player.x, player.y)
+
                 camera_x, camera_y = update_camera(player, camera_x, camera_y)
 
                 # Gathering logic для ресурсов (обновлено: проверка cooldown и устранение wait)
@@ -1283,6 +1380,24 @@ def main():
                             # **Удалено: pygame.time.wait(200)**
                         space_cooldown = 200  # **Новое: 1-секундный cooldown**
 
+                # Gathering logic для мопсов
+                for mops_obj in mops[:]:
+                    player_rect = pygame.Rect(player.x, player.y, PLAYER_SIZE, PLAYER_SIZE)
+                    mops_rect = pygame.Rect(mops_obj.x, mops_obj.y, PLAYER_SIZE, PLAYER_SIZE)
+                    if player_rect.colliderect(mops_rect) and keys[pygame.K_SPACE] and space_cooldown <= 0:
+                        print(f"DEBUG: Colliding with mops at ({mops_obj.x}, {mops_obj.y}), type: {mops_obj.type}")
+                        sound_manager.play_random_punch()
+                        damage = 5 if current_tool == 'sword' else 1
+                        mops_obj.hp -= damage
+                        if mops_obj.hp <= 0:
+                            inventory['meat'] += 1
+                            mops.remove(mops_obj)
+                            new_mops = spawn_mops(resources + animals + mops, mops_type)
+                            mops.append(new_mops)
+                            print(f"DEBUG: Mops убит! Meat +1")
+                            # **Удалено: pygame.time.wait(200)**
+                        space_cooldown = 200  # **Новое: 1-секундный cooldown**
+
                 # Gathering logic для врагов (обновлено аналогично)
                 for enemy in enemies[:]:
                     distance = ((player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2) ** 0.5
@@ -1317,6 +1432,8 @@ def main():
                     res.draw(screen, camera_x, camera_y)
                 for animal in animals:
                     animal.draw(screen, camera_x, camera_y)  # Добавлено рисование животных
+                for mops_obj in mops:
+                    mops_obj.draw(screen, camera_x, camera_y)  # Рисуем мопсов
                 for enemy in enemies:
                     enemy.draw(screen, camera_x, camera_y)  # Рисуем врагов
                 for boss in bosses:
