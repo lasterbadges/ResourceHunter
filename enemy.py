@@ -15,8 +15,13 @@ GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
+enemy_sprite = None
 
-
+def get_enemy_sprite():
+    global enemy_sprite
+    if enemy_sprite is None:
+        enemy_sprite = load_image("Wolf.png", (PLAYER_SIZE, PLAYER_SIZE))
+    return enemy_sprite
 
 class Enemy:
     def __init__(self, x, y):
@@ -178,54 +183,33 @@ class Enemy:
             self.attack_timer -= 1
 
     def draw(self, screen, camera_x, camera_y):
-        # Спрайты для врагов
-        enemy_sprites = {}
-        directions = ['down', 'right', 'up', 'left']
-        for dir in directions:
-            enemy_sprites[dir] = {
-                'stand': load_image(f"enemy_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                'walk': [
-                    load_image(f"enemy_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                    load_image(f"enemy_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                    load_image(f"enemy_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                    load_image(f"enemy_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-                ]
-            }
+            draw_x = self.x - camera_x
+            draw_y = self.y - camera_y
 
-        # Fallback для left: flip от right, только если right не None
-        for key in ['stand', 'walk']:
-            if key == 'stand':
-                if enemy_sprites['right'][key] is not None:
-                    enemy_sprites['left'][key] = pygame.transform.flip(enemy_sprites['right'][key], True, False)
-                else:
-                    enemy_sprites['left'][key] = None
-            elif key == 'walk':
-                enemy_sprites['left'][key] = []
-                for i in range(4):
-                    if enemy_sprites['right'][key][i] is not None:
-                        enemy_sprites['left'][key].append(
-                            pygame.transform.flip(enemy_sprites['right'][key][i], True, False))
-                    else:
-                        enemy_sprites['left'][key].append(None)
+            angle_direction = {'left': 0, 'right': 0, 'up': -90, 'down': 90}
+            base_angle = angle_direction.get(self.direction, 0)
 
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
+            tilt = 0
+            if self.is_moving:
+                tilt = 10 if (pygame.time.get_ticks() // 100) % 2 == 0 else -10
 
-        if self.is_moving:
-            sprite = enemy_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = enemy_sprites[self.direction]['stand']
+            total_angle = base_angle + tilt
 
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, (255, 0, 0), (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
+            sprite = get_enemy_sprite()
+            if self.direction == 'right':
+                sprite = pygame.transform.flip(sprite, True, False)
+            if sprite:
+                rotated = pygame.transform.rotate(sprite, total_angle)
+                rect = rotated.get_rect(center=(draw_x + PLAYER_SIZE // 2, draw_y + PLAYER_SIZE // 2))
+                screen.blit(rotated, rect)
+            else:
+                pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
 
-        # Полоска здоровья
-        bar_width = PLAYER_SIZE
-        bar_height = 5
-        bar_x = draw_x
-        bar_y = draw_y - 10
-        pygame.draw.rect(screen, RED, (bar_x, bar_y, bar_width, bar_height))
-        health_width = int((self.hp / 30) * bar_width)
-        pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
+            # Полоска здоровья
+            bar_width = PLAYER_SIZE
+            bar_height = 5
+            bar_x = draw_x
+            bar_y = draw_y - 10
+            pygame.draw.rect(screen, RED, (bar_x, bar_y, bar_width, bar_height))
+            health_width = int((self.hp / 30) * bar_width)
+            pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
