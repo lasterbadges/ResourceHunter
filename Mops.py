@@ -11,28 +11,28 @@ WORLD_HEIGHT = 3000
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
-animal_types = ['sheep']
+mops_type = ['mops']
 
-sheep_sprite = None
-
-
-def get_sheep_sprite():
-    global sheep_sprite
-    if sheep_sprite is None:
-        sheep_sprite = load_image("Sheep.png", (PLAYER_SIZE, PLAYER_SIZE))
-    return sheep_sprite
+mops_sprite = None
 
 
-class Animal:
-    def __init__(self, x, y, animal_type, screen):
+def get_mops_sprite():
+    global mops_sprite
+    if mops_sprite is None:
+        mops_sprite = load_image("Mops1.png", (PLAYER_SIZE, PLAYER_SIZE))
+    return mops_sprite
+
+
+class Mops:
+    def __init__(self, x, y, mops_type, screen):
         self.x = x
         self.y = y
         self.speed = 2
         self.direction = random.choice(['down', 'right', 'up', 'left'])
         self.move_timer = 0
-        self.sound_timer = random.randint(150, 400)  # Таймер для звуков
+        self.sound_timer = random.randint(120, 300)  # Таймер для звуков
         self.hp = 10
-        self.type = animal_type
+        self.type = mops_type
         self.is_moving = False
 
     def move(self, resources):
@@ -40,11 +40,11 @@ class Animal:
         self.move_timer += 1
         self.sound_timer -= 1
 
-        # Воспроизведение случайных звуков овечки
+        # Воспроизведение случайных звуков мопса
         if self.sound_timer <= 0:
-            if random.random() < 0.25:  # 25% шанс на звук
-                sound_manager.play_npc_sound('sheep', self.x, self.y)
-            self.sound_timer = random.randint(200, 500)  # 3.3-8.3 секунд
+            if random.random() < 0.3:  # 30% шанс на звук
+                sound_manager.play_npc_sound('mops', self.x, self.y)
+            self.sound_timer = random.randint(180, 480)  # 3-8 секунд
 
         if self.move_timer >= 60:
             self.direction = random.choice(['down', 'right', 'up', 'left'])
@@ -88,7 +88,7 @@ class Animal:
 
         total_angle = base_angle + tilt
 
-        sprite = get_sheep_sprite()
+        sprite = get_mops_sprite()
         if self.direction == 'right':
             sprite = pygame.transform.flip(sprite, True, False)
         if sprite:
@@ -108,13 +108,13 @@ class Animal:
         pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
     @staticmethod
-    def spawn_animal(existing_objects, animal_types):
+    def spawn_mops(existing_objects, mops_types):
         attempts = 100
         for _ in range(attempts):
             x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
             y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
-            animal_type = random.choice(animal_types)
-            candidate = Animal(x, y, animal_type, None)
+            mops_type = random.choice(mops_types)
+            candidate = Mops(x, y, mops_type, None)
             too_close = False
             for obj in existing_objects:
                 dx = candidate.x - obj.x
@@ -127,5 +127,5 @@ class Animal:
                 return candidate
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
         y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
-        animal_type = random.choice(animal_types)
-        return Animal(x, y, animal_type, None)
+        mops_type = random.choice(mops_types)
+        return Mops(x, y, mops_type, None)

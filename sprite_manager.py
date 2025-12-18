@@ -47,14 +47,19 @@ DARK_RED = (139, 0, 0)  # Для капкана
 # Загрузка изображений (теперь 5 фреймов: stand + 4 walk)
 def load_image(filename, size):
     filepath = os.path.join(os.getcwd(), 'sprites', filename)
+    print(f"Trying to load {filepath}")
     if os.path.exists(filepath):
+        print(f"File exists: {filepath}")
         try:
             img = pygame.image.load(filepath).convert_alpha()
+            print(f"Loaded image: {filename}")
             if size:
                 return pygame.transform.scale(img, size)
             return img
-        except pygame.error:
-            print(f"Ошибка загрузки {filename}, fallback.")
+        except pygame.error as e:
+            print(f"Ошибка загрузки {filename}: {e}, fallback.")
+    else:
+        print(f"File not found: {filepath}")
     return None
 
 

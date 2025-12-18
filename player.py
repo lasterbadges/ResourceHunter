@@ -2,6 +2,7 @@ import pygame
 import math
 from animal import Animal
 from enemy import Enemy
+from Mops import Mops, mops_type
 from sprite_manager import load_image
 from sound_manager import sound_manager  # Импортируем менеджер звуков
 
@@ -173,21 +174,6 @@ class Player:
 
     # Removed duplicate move method
 
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = player_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            text = self.font.render(self.direction, True, BLACK)
-            screen.blit(text, (draw_x + 5, draw_y + 5))
 
     def move(self, keys):
         if self.roll_cooldown > 0:
@@ -262,7 +248,7 @@ class Player:
             self.roll_frame = 0
             self.roll_cooldown = 240
 
-    def pushback(self, enemies, animals, bosses, pushback_waves, inventory, resources, day_night_cycle):
+    def pushback(self, enemies, animals, mops, bosses, pushback_waves, inventory, resources, day_night_cycle):
         if self.pushback_cooldown > 0:
             return
         self.pushback_cooldown = PUSHBACK_COOLDOWN
@@ -297,7 +283,7 @@ class Player:
                 if enemy.hp <= 0:
                     inventory['meat'] += 1
                     enemies.remove(enemy)
-                    new_enemy = Enemy.spawn_enemy(resources + animals + enemies, day_night_cycle)
+                    new_enemy = Enemy.spawn_enemy(resources + animals + mops + enemies, day_night_cycle)
                     if new_enemy:
                         enemies.append(new_enemy)
 
@@ -323,8 +309,33 @@ class Player:
                 if animal.hp <= 0:
                     inventory['food'] += 1
                     animals.remove(animal)
-                    new_animal = Animal.spawn_animal(resources + animals, Animal.animal_types)
+                    new_animal = Animal.spawn_animal(resources + animals + mops, Animal.animal_types)
                     animals.append(new_animal)
+
+        # Отталкиваем мопсов
+        for mops_obj in mops[:]:
+            mops_center_x = mops_obj.x + PLAYER_SIZE // 2
+            mops_center_y = mops_obj.y + PLAYER_SIZE // 2
+            dx = mops_center_x - player_center_x
+            dy = mops_center_y - player_center_y
+            dist = (dx ** 2 + dy ** 2) ** 0.5
+
+            if dist < PUSHBACK_RANGE and dist > 0:
+                # Нормализуем направление и отталкиваем
+                push_dx = (dx / dist) * PUSHBACK_FORCE * 5
+                push_dy = (dy / dist) * PUSHBACK_FORCE * 5
+                mops_obj.x = int(mops_obj.x + push_dx)
+                mops_obj.y = int(mops_obj.y + push_dy)
+                # Ограничиваем в пределах мира
+                mops_obj.x = max(0, min(WORLD_WIDTH - PLAYER_SIZE, mops_obj.x))
+                mops_obj.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, mops_obj.y))
+                # Наносим урон
+                mops_obj.hp -= PUSHBACK_DAMAGE
+                if mops_obj.hp <= 0:
+                    inventory['meat'] += 1
+                    mops.remove(mops_obj)
+                    new_mops = Mops.spawn_mops(resources + animals + mops, mops_type)
+                    mops.append(new_mops)
 
         # Боссы НЕ отталкиваются, но получают урон если в радиусе
         for boss in bosses:

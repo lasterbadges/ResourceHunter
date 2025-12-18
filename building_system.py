@@ -41,6 +41,7 @@ ORANGE = (255, 165, 0)  # Для костра
 BLUE = (0, 0, 255)  # Для верстака
 YELLOW = (255, 255, 0)  # Для палатки
 DARK_RED = (139, 0, 0)  # Для капкана
+FLESH = (255, 218, 185)  # Телесный цвет для обводки палатки
 
 class Building:
     def __init__(self, x, y, type_):
@@ -54,12 +55,21 @@ class Building:
         draw_y = self.y - camera_y
         if 0 <= draw_x <= screen_width and 0 <= draw_y <= screen_height:
             if self.type == 'workbench':
-                pygame.draw.rect(screen, BROWN, (draw_x, draw_y, self.size, self.size))
+                # Столешница
+                pygame.draw.rect(screen, BROWN, (draw_x, draw_y + 20, self.size, 10))
+                # Левая ножка
+                pygame.draw.rect(screen, BROWN, (draw_x + 5, draw_y + 30, 5, 30))
+                # Правая ножка
+                pygame.draw.rect(screen, BROWN, (draw_x + self.size - 10, draw_y + 30, 5, 30))
             elif self.type == 'tent':
-                pygame.draw.rect(screen, YELLOW, (draw_x, draw_y, self.size, self.size))
-                # Треугольная крыша (схематично)
-                pygame.draw.polygon(screen, BROWN, [(draw_x, draw_y + self.size), (draw_x + self.size // 2, draw_y),
-                                                    (draw_x + self.size, draw_y + self.size)])
+                # Треугольная палатка с обводкой по бокам и полоской
+                pygame.draw.polygon(screen, YELLOW, [(draw_x, draw_y + self.size), (draw_x + self.size // 2, draw_y),
+                                                     (draw_x + self.size, draw_y + self.size)])
+                # Боковые линии толще
+                pygame.draw.line(screen, FLESH, (draw_x + self.size // 2, draw_y), (draw_x, draw_y + self.size), 5)
+                pygame.draw.line(screen, FLESH, (draw_x + self.size // 2, draw_y), (draw_x + self.size, draw_y + self.size), 5)
+                # Полоска по середине
+                pygame.draw.line(screen, FLESH, (draw_x + self.size // 2, draw_y), (draw_x + self.size // 2, draw_y + self.size), 3)
             elif self.type == 'trap':
                 pygame.draw.rect(screen, DARK_RED, (draw_x + 10, draw_y + 30, 40, 10))
                 pygame.draw.circle(screen, GRAY, (draw_x + 30, draw_y + 35), 15, 2)

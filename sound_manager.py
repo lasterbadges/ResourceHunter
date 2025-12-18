@@ -1,91 +1,165 @@
 import pygame
 import random
+import os
+import math
 
 # Инициализация микшера
-pygame.mixer.init()
+pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
 
 
 class SoundManager:
     def __init__(self):
         self.sounds = {}
-        self.music_playing = False
         self.current_music = None
-        self.music_volume = 0.3  # Стандартная громкость
-        self.fade_speed = 0.01  # Скорость плавного перехода
-        self.target_volume = 0.3  # Целевая громкость
-        self.fading_out = False
-        self.fading_in = False
-        self.next_music = None
+        self.target_volume = 0.15
+        self.current_volume = 0
+        self.fade_speed = 0.003
+        self.music_fading_in = False
+        self.music_fading_out = False
+        self.day_music_volume = 0.15
+        self.night_music_volume = 0.25
+        self.game_over_active = False
+        self.player_x = 0  # Для 3D эффекта
+        self.player_y = 0
         self.load_sounds()
+        print(f"Звуковой менеджер инициализирован. Загружено звуков: {len(self.sounds)}")
+
+    def update_player_position(self, x, y):
+        """Обновить позицию игрока для 3D эффекта"""
+        self.player_x = x
+        self.player_y = y
 
     def load_sounds(self):
         """Загрузка всех звуков и музыки"""
-        try:
-            # Загружаем звуки из папки sounds
-            self.sounds['build'] = pygame.mixer.Sound("sounds/build.mp3")
-            self.sounds['build'].set_volume(0.4)
+        sound_files = {
+            'build': "sounds/build.mp3",
+            'destroying': "sounds/destroying.mp3",
+            'lightning': "sounds/lightning.mp3",
+            'punch': ["sounds/punch1.mp3", "sounds/punch3.mp3"],
+            # NPC звуки
+            'mops': ["sounds/mops.mp3"],
+            'sheep': ["sounds/sheep1.mp3", "sounds/sheep2.mp3"],
+            'boss': ["sounds/boss1.mp3", "sounds/boss2.mp3", "sounds/boss3.mp3"],
+            'wolf': ["sounds/wolf1.mp3", "sounds/wolf2.mp3", "sounds/wolf3.mp3"]
+        }
 
-            self.sounds['destroying'] = pygame.mixer.Sound("sounds/destroying.mp3")
-            self.sounds['destroying'].set_volume(0.5)
+        # Загружаем все звуки
+        for sound_name, filepaths in sound_files.items():
+            if isinstance(filepaths, list):
+                # Для звуков со списком вариантов
+                self.sounds[sound_name] = []
+                for i, filepath in enumerate(filepaths):
+                    try:
+                        if os.path.exists(filepath):
+                            sound = pygame.mixer.Sound(filepath)
+                            # Устанавливаем базовую громкость
+                            if sound_name == 'mops':
+                                sound.set_volume(0.4)
+                            elif sound_name == 'sheep':
+                                sound.set_volume(0.3)
+                            elif sound_name == 'boss':
+                                sound.set_volume(0.6)
+                            elif sound_name == 'wolf':
+                                sound.set_volume(0.5)
+                            elif sound_name == 'punch':
+                                sound.set_volume(0.4)
+                            elif sound_name == 'build':
+                                sound.set_volume(0.4)
+                            elif sound_name == 'destroying':
+                                sound.set_volume(0.5)
+                            elif sound_name == 'lightning':
+                                sound.set_volume(0.6)
 
-            self.sounds['lightning'] = pygame.mixer.Sound("sounds/lightning.mp3")
-            self.sounds['lightning'].set_volume(0.6)
-
-            # Создаем список звуков ударов
-            self.sounds['punch'] = [
-                pygame.mixer.Sound("sounds/punch1.mp3"),
-                pygame.mixer.Sound("sounds/punch3.mp3")
-            ]
-            for punch_sound in self.sounds['punch']:
-                punch_sound.set_volume(0.4)
-
-        except Exception as e:
-            print(f"Ошибка загрузки звуков: {e}")
-            self.sounds = {}
+                            self.sounds[sound_name].append(sound)
+                            print(f"✓ Звук {sound_name}{i + 1} загружен")
+                        else:
+                            print(f"✗ Файл не найден: {filepath}")
+                            self.sounds[sound_name].append(None)
+                    except Exception as e:
+                        print(f"Ошибка загрузки {filepath}: {e}")
+                        self.sounds[sound_name].append(None)
+            else:
+                # Для одиночных звуков
+                try:
+                    if os.path.exists(filepaths):
+                        sound = pygame.mixer.Sound(filepaths)
+                        sound.set_volume(0.5)
+                        self.sounds[sound_name] = sound
+                        print(f"✓ Звук {sound_name} загружен")
+                    else:
+                        print(f"✗ Файл не найден: {filepaths}")
+                        self.sounds[sound_name] = None
+                except Exception as e:
+                    print(f"Ошибка загрузки {filepaths}: {e}")
+                    self.sounds[sound_name] = None
 
     def update(self):
-        """Обновление плавного перехода музыки"""
-        if self.fading_out:
-            # Плавное уменьшение громкости
-            self.music_volume = max(0, self.music_volume - self.fade_speed)
-            pygame.mixer.music.set_volume(self.music_volume)
+        """Обновление плавного изменения громкости"""
+        if self.game_over_active:
+            return
 
-            if self.music_volume <= 0:
-                self.fading_out = False
-                if self.next_music:
-                    self._switch_music(self.next_music)
-                    self.next_music = None
-                    self.fading_in = True
-                else:
-                    pygame.mixer.music.stop()
-                    self.music_playing = False
-                    self.current_music = None
+        if self.current_volume < 0:
+            self.current_volume = 0
 
-        elif self.fading_in:
-            # Плавное увеличение громкости
-            self.music_volume = min(self.target_volume, self.music_volume + self.fade_speed)
-            pygame.mixer.music.set_volume(self.music_volume)
+        if abs(self.current_volume - self.target_volume) > 0.001:
+            diff = self.target_volume - self.current_volume
+            if abs(diff) < self.fade_speed:
+                self.current_volume = self.target_volume
+            else:
+                self.current_volume += self.fade_speed if diff > 0 else -self.fade_speed
 
-            if self.music_volume >= self.target_volume:
-                self.fading_in = False
+            self.current_volume = max(0, min(self.current_volume, self.night_music_volume))
 
-    def _switch_music(self, music_type):
-        """Внутренний метод для переключения музыки"""
-        try:
-            if music_type == 'day':
-                pygame.mixer.music.load("sounds/day.mp3")
-            elif music_type == 'night':
-                pygame.mixer.music.load("sounds/night.mp3")
+            if pygame.mixer.music.get_busy():
+                pygame.mixer.music.set_volume(self.current_volume)
 
-            pygame.mixer.music.set_volume(0)  # Начинаем с нулевой громкости
-            pygame.mixer.music.play(-1)  # Зацикливание
-            self.music_playing = True
-            self.current_music = music_type
-            print(f"Музыка переключена на: {music_type}")
-        except Exception as e:
-            print(f"Ошибка переключения музыки на {music_type}: {e}")
-            self.music_playing = False
+        if self.music_fading_out and self.current_volume <= 0.01:
+            pygame.mixer.music.stop()
             self.current_music = None
+            self.music_fading_out = False
+            self.current_volume = 0
+            self.target_volume = 0
+
+    def calculate_distance_volume(self, npc_x, npc_y, max_distance=500):
+        """Рассчитать громкость звука в зависимости от расстояния до игрока"""
+        if not hasattr(self, 'player_x') or not hasattr(self, 'player_y'):
+            return 1.0  # Если позиция игрока неизвестна, полная громкость
+
+        dx = npc_x - self.player_x
+        dy = npc_y - self.player_y
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        if distance >= max_distance:
+            return 0.1  # Минимальная громкость на максимальном расстоянии
+        elif distance <= 50:
+            return 1.0  # Полная громкость вблизи
+        else:
+            # Плавное уменьшение громкости с расстоянием
+            volume = 1.0 - (distance / max_distance) * 0.9
+            return max(0.1, min(1.0, volume))
+
+    def play_npc_sound(self, npc_type, npc_x=None, npc_y=None):
+        """Воспроизвести случайный звук NPC с 3D эффектом"""
+        if npc_type not in self.sounds or not self.sounds[npc_type]:
+            return
+
+        # Выбираем случайный звук из доступных
+        available_sounds = [s for s in self.sounds[npc_type] if s is not None]
+        if not available_sounds:
+            return
+
+        sound = random.choice(available_sounds)
+
+        # Рассчитываем громкость на основе расстояния
+        if npc_x is not None and npc_y is not None:
+            volume = self.calculate_distance_volume(npc_x, npc_y)
+            sound.set_volume(volume)
+
+        try:
+            sound.play()
+            # print(f"Воспроизведен звук {npc_type} (громкость: {volume:.2f})")
+        except:
+            pass
 
     def play_sound(self, sound_name):
         """Воспроизведение звука по имени"""
@@ -103,49 +177,81 @@ class SoundManager:
             except:
                 pass
 
+    def set_game_over(self, active):
+        self.game_over_active = active
+        if active:
+            pygame.mixer.music.stop()
+            self.current_music = None
+            self.current_volume = 0
+            self.target_volume = 0
+            print("Музыка остановлена (game over)")
+
     def play_day_music(self):
-        """Воспроизведение дневной музыки с плавным переходом"""
+        if self.game_over_active:
+            return
+
         if self.current_music != 'day':
-            if self.music_playing:
-                # Если играет другая музыка, начинаем плавный переход
-                self.fading_out = True
-                self.next_music = 'day'
-            else:
-                # Если музыка не играет, просто включаем
-                self._switch_music('day')
-                self.music_volume = 0
-                self.fading_in = True
+            try:
+                if pygame.mixer.music.get_busy():
+                    pygame.mixer.music.stop()
+
+                pygame.mixer.music.load("sounds/day.mp3")
+                pygame.mixer.music.set_volume(0)
+                pygame.mixer.music.play(-1)
+
+                self.current_music = 'day'
+                self.target_volume = self.day_music_volume
+                self.current_volume = 0
+                self.music_fading_in = True
+                self.music_fading_out = False
+                print("Дневная музыка включена (тихая)")
+
+            except Exception as e:
+                print(f"Ошибка загрузки дневной музыки: {e}")
 
     def play_night_music(self):
-        """Воспроизведение ночной музыки с плавным переходом"""
-        if self.current_music != 'night':
-            if self.music_playing:
-                # Если играет другая музыка, начинаем плавный переход
-                self.fading_out = True
-                self.next_music = 'night'
-            else:
-                # Если музыка не играет, просто включаем
-                self._switch_music('night')
-                self.music_volume = 0
-                self.fading_in = True
+        if self.game_over_active:
+            return
 
-    def stop_music_fade(self):
-        """Плавная остановка музыки"""
-        if self.music_playing:
-            self.fading_out = True
-            self.next_music = None
+        if self.current_music != 'night':
+            try:
+                if pygame.mixer.music.get_busy():
+                    pygame.mixer.music.stop()
+
+                pygame.mixer.music.load("sounds/night.mp3")
+                pygame.mixer.music.set_volume(0)
+                pygame.mixer.music.play(-1)
+
+                self.current_music = 'night'
+                self.target_volume = self.night_music_volume
+                self.current_volume = 0
+                self.music_fading_in = True
+                self.music_fading_out = False
+                print("Ночная музыка включена")
+
+            except Exception as e:
+                print(f"Ошибка загрузки ночной музыки: {e}")
 
     def stop_music(self):
-        """Немедленная остановка музыки"""
-        if self.music_playing:
-            pygame.mixer.music.stop()
-            self.music_playing = False
-            self.current_music = None
-            self.fading_out = False
-            self.fading_in = False
-            self.next_music = None
-            print("Музыка остановлена")
+        if self.current_music and pygame.mixer.music.get_busy():
+            self.target_volume = 0
+            self.music_fading_out = True
+            print(f"Музыка '{self.current_music}' плавно выключается")
+
+    def pause_music(self):
+        if pygame.mixer.music.get_busy():
+            pygame.mixer.music.pause()
+
+    def unpause_music(self):
+        if not self.game_over_active:
+            pygame.mixer.music.unpause()
+
+    def reset_for_new_game(self):
+        self.game_over_active = False
+        self.current_music = None
+        self.current_volume = 0
+        self.target_volume = 0
+        print("Музыка сброшена для новой игры")
 
 
-# Глобальный экземпляр менеджера звуков
 sound_manager = SoundManager()
