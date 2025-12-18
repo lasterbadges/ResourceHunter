@@ -1119,9 +1119,9 @@ def main():
                                 workbench_menu_open = not workbench_menu_open
                                 pygame.time.wait(200)
                             elif b.type == 'tent':
-                                day_night_cycle.time = 300  # Сброс на утро
+                                day_night_cycle.set_time(75)  # Сброс на утро (0.25 * 300)
                                 print("Вы поспали в палатке. Наступило утро.")
-                                pygame.time.wait(500)
+
                             elif b.type == 'campfire':
                                 if inventory['meat'] > 0:
                                     inventory['meat'] -= 1

@@ -8,6 +8,9 @@ class DayNightCycle:
 
     def update(self):
         self.current_time = (time.time() - self.start_time) % self.day_length
+
+    def set_time(self, time_value):
+        self.start_time = time.time() - time_value
     def get_time_of_day(self):
         # Returns a value between 0 and 1, where 0 is midnight, 0.5 is noon
         return self.current_time / self.day_length
