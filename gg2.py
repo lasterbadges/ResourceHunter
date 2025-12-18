@@ -308,9 +308,8 @@ def draw_pause():
 def handle_pause_events(events):
     global game_state, previous_state, inventory, tools, current_tool, player
     for event in events:
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:  # Левая кнопка мыши
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mouse_pos = pygame.mouse.get_pos()
-            # Определение прямоугольников кнопок (должны совпадать с draw_pause)
             button_width = 200
             button_height = 50
             button_x = screen_width // 2 - button_width // 2
@@ -318,18 +317,19 @@ def handle_pause_events(events):
             settings_button = pygame.Rect(button_x, screen_height // 2 + 20, button_width, button_height)
             quit_menu_button = pygame.Rect(button_x, screen_height // 2 + 90, button_width, button_height)
 
-            # Проверка коллизий и изменение состояния
             if resume_button.collidepoint(mouse_pos):
                 game_state = 'game'
+                # Возобновляем музыку при выходе из паузы
+                sound_manager.unpause_music()
                 print("Возобновление игры.")
             elif settings_button.collidepoint(mouse_pos):
                 previous_state = 'pause'
                 game_state = 'settings'
                 print("Переход в настройки из паузы.")
             elif quit_menu_button.collidepoint(mouse_pos):
-                save_game(player, inventory, tools, current_tool)  # Сохранение при выходе в меню
+                save_game(player, inventory, tools, current_tool)
                 game_state = 'menu'
-                sound_manager.stop_music()  # Останавливаем музыку
+                sound_manager.stop_music()
                 print("Возврат в меню.")
 
 
@@ -384,14 +384,16 @@ def handle_game_over_events(events):
                 tools = {'hand': True, 'axe': False, 'pickaxe': False, 'sword': False}
                 current_tool = 'hand'
                 game_state = 'game'
-                sound_manager.stop_music()
-                print("Respawned.")
+
+                # ВАЖНО: Сбросить флаг game over и подготовить систему для новой музыки
+                sound_manager.reset_for_new_game()
+                print("Respawned. Музыка будет включена автоматически.")
+
             elif quit_button.collidepoint(mouse_pos):
                 save_game(player, inventory, tools, current_tool)  # Сохранение
                 game_state = 'menu'
                 sound_manager.stop_music()
                 print("Quit to menu.")
-
 
 # Spawn resource with distance check
 def spawn_resource(existing_resources):
@@ -839,6 +841,12 @@ def main():
         print(f"Loaded tools: {tools}")
         print(f"Loaded current tool: {current_tool}")
 
+    # Восстановление музыки при загрузке сохранения
+    if game_state == 'game':
+        # Не запускаем музыку здесь - она запустится в основном игровом цикле
+        # когда обработается система дня/ночи
+        pass
+
     # Спавн ресурсов с проверкой расстояния
     resources = []
     for _ in range(40):
@@ -988,23 +996,52 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
-                # Управление музыкой в зависимости от времени суток
-                if day_night_cycle.is_day():
-                    if sound_manager.music_playing:
-                        sound_manager.stop_music()
-                else:
-                    # Ночь - включаем музыку только если враги начинают спавниться
-                    if len(enemies) > 0 and not sound_manager.music_playing:
-                        sound_manager.play_night_music()
 
-                if day_night_cycle.is_day() == False and len(enemies) < 5:
+                # Обновление звукового менеджера
+                sound_manager.update()
+
+                # Управление музыкой в зависимости от времени суток
+                is_daytime = day_night_cycle.is_day()
+                time_of_day = day_night_cycle.get_time_of_day()
+
+                if game_state == 'game_over':
+                    # Музыка уже остановлена в set_game_over(True)
+                    pass
+                elif is_daytime:
+                    # ДЕНЬ
+                    if sound_manager.current_music != 'day':
+                        sound_manager.play_day_music()
+                    else:
+                        # Плавное изменение громкости в течение дня
+                        if time_of_day < 0.3:  # Утро
+                            volume_factor = (time_of_day - 0.25) / 0.05 if time_of_day > 0.25 else 0
+                            sound_manager.target_volume = sound_manager.day_music_volume * volume_factor
+                        elif time_of_day > 0.7:  # Вечер
+                            fade_factor = 1.0 - ((time_of_day - 0.7) / 0.05)
+                            sound_manager.target_volume = sound_manager.day_music_volume * fade_factor
+                        else:  # Полдень
+                            sound_manager.target_volume = sound_manager.day_music_volume
+                else:
+                    # НОЧЬ - музыка играет ВСЕГДА
+                    if sound_manager.current_music != 'night':
+                        sound_manager.play_night_music()
+                    else:
+                        # Плавное изменение громкости в течение ночи
+                        if time_of_day < 0.3:  # Ранняя ночь
+                            fade_factor = (time_of_day - 0.25) / 0.05 if time_of_day > 0.25 else 0
+                            sound_manager.target_volume = sound_manager.night_music_volume * fade_factor
+                        elif time_of_day > 0.7:  # Поздняя ночь
+                            fade_factor = 1.0 - ((time_of_day - 0.7) / 0.05)
+                            sound_manager.target_volume = sound_manager.night_music_volume * fade_factor
+                        else:  # Полночь
+                            sound_manager.target_volume = sound_manager.night_music_volume
+
+                # Спавн врагов ночью
+                if not is_daytime and len(enemies) < 5:
                     for _ in range(5):
                         new_enemy = spawn_enemy(resources + animals + mops + enemies, day_night_cycle)
                         if new_enemy:
                             enemies.append(new_enemy)
-                            # Включаем ночную музыку при спавне первого врага ночью
-                            if not sound_manager.music_playing:
-                                sound_manager.play_night_music()
 
                 # Обновление cooldown для SPACE
                 space_cooldown = max(0, space_cooldown - dt)
@@ -1020,6 +1057,7 @@ def main():
                     player.hunger_timer = 0
                     if player.hp <= 0:
                         game_state = 'game_over'
+                        sound_manager.set_game_over(True)
 
                 screen.fill(GRASS_GREEN)
 
@@ -1062,6 +1100,7 @@ def main():
                         building_mode = False
                     else:
                         game_state = 'pause'
+                        sound_manager.pause_music()
                         print("Transitioning to pause state")
                     pygame.time.wait(200)
 
@@ -1289,6 +1328,8 @@ def main():
                     game_state = 'game_over'
 
                 player.move(keys)
+
+                sound_manager.update_player_position(player.x, player.y)
 
                 camera_x, camera_y = update_camera(player, camera_x, camera_y)
 

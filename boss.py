@@ -2,7 +2,7 @@ import pygame
 import random
 import os
 import math
-from sound_manager import sound_manager  # Импортируем менеджер звуков
+from sound_manager import sound_manager
 from sprite_manager import load_image
 
 # Constants
@@ -11,21 +11,20 @@ WORLD_WIDTH = 3000
 WORLD_HEIGHT = 3000
 PLAYER_SIZE = 40
 RESOURCE_SIZE = 70
-BOSS_ATTACK_RANGE = 80  # Радиус атаки для босса
-BOSS_VISION_RANGE = 300  # Радиус нацеливания для босса
+BOSS_ATTACK_RANGE = 80
+BOSS_VISION_RANGE = 300
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
-
-# Спрайты для босса
 boss_sprite = None
+
 
 def get_boss_sprite():
     global boss_sprite
     if boss_sprite is None:
-        boss_sprite = load_image("Dragon.png", (PLAYER_SIZE*2, PLAYER_SIZE*2))
+        boss_sprite = load_image("Dragon.png", (PLAYER_SIZE * 2, PLAYER_SIZE * 2))
     return boss_sprite
 
 
@@ -38,7 +37,7 @@ class Boss:
         self.max_hp = 1000
         self.hp = 1000
         self.damage = 20
-        self.push_damage = 0  # Отталкивание не убирает HP, но толкает
+        self.push_damage = 0
         self.attack_timer = 0
         self.push_timer = 0
         self.ranged_timer = 0
@@ -46,6 +45,8 @@ class Boss:
         self.aim_start_time = 0
         self.direction = random.choice(['down', 'right', 'up', 'left'])
         self.move_timer = 0
+        self.sound_timer = random.randint(60, 180)  # Таймер для звуков
+        self.roar_timer = random.randint(300, 600)  # Отдельный таймер для рыка
         self.is_moving = False
         self.walk_timer = 0
         self.walk_frame = 0
@@ -65,48 +66,40 @@ class Boss:
         self.dash_distance = 300
         self.dash_area = 150
 
-    def can_move_to_position(self, new_x, new_y, resources, enemies, player, bosses):
-        if (new_x < 0 or new_x > WORLD_WIDTH - self.size or
-                new_y < 0 or new_y > WORLD_HEIGHT - self.size):
-            return False
-        if (abs(new_x - player.x) < self.size and
-                abs(new_y - player.y) < self.size):
-            return False
-        for enemy in enemies:
-            if (abs(new_x - enemy.x) < self.size and
-                    abs(new_y - enemy.y) < self.size):
-                return False
-        for boss in bosses:
-            if boss != self:
-                if (abs(new_x - boss.x) < self.size and
-                        abs(new_y - boss.y) < self.size):
-                    return False
-        for res in resources:
-            if abs(new_x - res.x) < RESOURCE_SIZE and abs(new_y - res.y) < RESOURCE_SIZE:
-                return False
-        return True
-
     def move_towards_player(self, player_x, player_y, resources, enemies, player, bosses):
         if self.dashing:
             return
+
+        # Обновляем таймеры звуков
+        self.sound_timer -= 1
+        self.roar_timer -= 1
+
+        # Рандомные звуки босса
+        if self.sound_timer <= 0:
+            if random.random() < 0.2:  # 20% шанс на звук
+                sound_manager.play_npc_sound('boss', self.x, self.y)
+            self.sound_timer = random.randint(120, 300)
+
+        # Рык босса (более редкий)
+        if self.roar_timer <= 0 and random.random() < 0.1:
+            sound_manager.play_npc_sound('boss', self.x, self.y)
+            self.roar_timer = random.randint(400, 800)
+
         distance = ((player_x - self.x) ** 2 + (player_y - self.y) ** 2) ** 0.5
         prev_x, prev_y = self.x, self.y
 
-        # Проверка на активацию/потерю АГРО
         if distance <= self.vision_range:
             self.agro = True
-            self.agro_timer = 300  # Сброс таймера (~5 сек при 60 FPS)
+            self.agro_timer = 300
         elif self.agro:
             self.agro_timer -= 1
             if self.agro_timer <= 0:
                 self.agro = False
 
         if not self.agro:
-            # Случайное движение
             self.move_randomly(resources, enemies, player, bosses)
             return
 
-        # Преследование
         if distance <= self.attack_range:
             self.is_moving = False
             self.walk_frame = 0
@@ -132,7 +125,6 @@ class Boss:
         else:
             self.walk_frame = 0
 
-        # Определение направления
         if self.x > prev_x:
             self.direction = 'right'
         elif self.x < prev_x:
@@ -141,6 +133,27 @@ class Boss:
             self.direction = 'down'
         elif self.y < prev_y:
             self.direction = 'up'
+
+    def can_move_to_position(self, new_x, new_y, resources, enemies, player, bosses):
+        if (new_x < 0 or new_x > WORLD_WIDTH - self.size or
+                new_y < 0 or new_y > WORLD_HEIGHT - self.size):
+            return False
+        if (abs(new_x - player.x) < self.size and
+                abs(new_y - player.y) < self.size):
+            return False
+        for enemy in enemies:
+            if (abs(new_x - enemy.x) < self.size and
+                    abs(new_y - enemy.y) < self.size):
+                return False
+        for boss in bosses:
+            if boss != self:
+                if (abs(new_x - boss.x) < self.size and
+                        abs(new_y - boss.y) < self.size):
+                    return False
+        for res in resources:
+            if abs(new_x - res.x) < RESOURCE_SIZE and abs(new_y - res.y) < RESOURCE_SIZE:
+                return False
+        return True
 
     def move_randomly(self, resources, enemies, player, bosses):
         prev_x, prev_y = self.x, self.y
@@ -180,37 +193,32 @@ class Boss:
             return
         distance = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
 
-        # Проверка фазы
         if self.hp < self.max_hp * 0.5 and self.phase == 1:
             self.phase = 2
             self.speed *= 1.25
             self.damage += 10
+            # Рык при переходе во вторую фазу
+            sound_manager.play_npc_sound('boss', self.x, self.y)
             print("Босс входит во вторую фазу!")
 
-        # Cooldown в зависимости от фазы
         attack_cooldown = 60 if self.phase == 2 else 120
         push_cooldown = 180 if self.phase == 2 else 300
         ranged_cooldown = 300 if self.phase == 2 else 600
 
-        # Базовая атака вблизи
         if distance <= self.attack_range and self.attack_timer <= 0:
             player.hp -= self.damage
             self.attack_timer = attack_cooldown
-            # Воспроизводим звук удара
             sound_manager.play_random_punch()
         elif self.attack_timer > 0:
             self.attack_timer -= 1
 
-        # Отталкивание
         if distance <= self.attack_range + 20 and self.push_timer <= 0:
-            # Толкаем игрока назад с кувырком
             dx = player.x - self.x
             dy = player.y - self.y
             dist = (dx ** 2 + dy ** 2) ** 0.5
             if dist > 0:
                 player.dirx = dx / dist
                 player.diry = dy / dist
-                # Установить направление для анимации
                 if abs(player.dirx) > abs(player.diry):
                     player.direction = 'right' if player.dirx > 0 else 'left'
                 else:
@@ -224,15 +232,13 @@ class Boss:
         elif self.push_timer > 0:
             self.push_timer -= 1
 
-        # Дальняя атака
         if distance > self.attack_range and distance <= self.vision_range and self.ranged_timer <= 0:
             self.aiming = True
             self.aim_start_time = pygame.time.get_ticks()
             self.ranged_timer = ranged_cooldown
         elif self.aiming:
             current_time = pygame.time.get_ticks()
-            if current_time - self.aim_start_time >= 1500:  # 1.5 сек
-                # Выпустить fireball
+            if current_time - self.aim_start_time >= 1500:
                 fireball = Fireball(self.x + self.size // 2, self.y + self.size // 2, player.x + PLAYER_SIZE // 2,
                                     player.y + PLAYER_SIZE // 2)
                 fireballs.append(fireball)
@@ -240,18 +246,16 @@ class Boss:
         elif self.ranged_timer > 0:
             self.ranged_timer -= 1
 
-        # Dash атака (только во второй фазе)
         if self.phase == 2 and distance > self.attack_range:
             if not self.dashing and not self.dash_aiming and self.dash_timer <= 0:
                 self.dash_aiming = True
                 self.dash_aim_start = pygame.time.get_ticks()
-                self.dash_timer = 200  # 3.3 сек cooldown
+                self.dash_timer = 200
             if self.dash_aiming:
                 current_time = pygame.time.get_ticks()
-                if current_time - self.dash_aim_start >= 2000:  # 2 сек прицеливания
+                if current_time - self.dash_aim_start >= 2000:
                     self.dash_aiming = False
                     self.dashing = True
-                    # Установить target: направление к игроку, расстояние dash_distance
                     dx = player.x - self.x
                     dy = player.y - self.y
                     dist = (dx ** 2 + dy ** 2) ** 0.5
@@ -259,7 +263,6 @@ class Boss:
                         self.dash_target_x = self.x + (dx / dist) * self.dash_distance
                         self.dash_target_y = self.y + (dy / dist) * self.dash_distance
             if self.dashing:
-                # Двигаться к target
                 dx = self.dash_target_x - self.x
                 dy = self.dash_target_y - self.y
                 dist = (dx ** 2 + dy ** 2) ** 0.5
@@ -270,11 +273,9 @@ class Boss:
                     self.x = self.dash_target_x
                     self.y = self.dash_target_y
                     self.dashing = False
-                    # Нанести урон по области
                     player_dist = ((player.x - self.x) ** 2 + (player.y - self.y) ** 2) ** 0.5
                     if player_dist <= self.dash_area:
                         player.hp -= self.dash_damage
-                        # Воспроизводим звук удара при dash атаке
                         sound_manager.play_random_punch()
         elif self.dash_timer > 0:
             self.dash_timer -= 1
@@ -302,7 +303,6 @@ class Boss:
         else:
             pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
 
-        # Полоска здоровья
         bar_width = self.size
         bar_height = 5
         bar_x = draw_x
@@ -311,15 +311,13 @@ class Boss:
         health_width = int((self.hp / self.max_hp) * bar_width)
         pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
-        # Полоска прицеливания
         if self.aiming:
             pygame.draw.line(screen, (255, 255, 0), (draw_x + self.size // 2, draw_y + self.size // 2),
-                              (player.x - camera_x + PLAYER_SIZE // 2, player.y - camera_y + PLAYER_SIZE // 2), 3)
+                             (player.x - camera_x + PLAYER_SIZE // 2, player.y - camera_y + PLAYER_SIZE // 2), 3)
 
-        # Полоска прицеливания dash (красная, толстая)
         if self.dash_aiming:
             pygame.draw.line(screen, RED, (draw_x + self.size // 2, draw_y + self.size // 2),
-                              (player.x - camera_x + PLAYER_SIZE // 2, player.y - camera_y + PLAYER_SIZE // 2), 5)
+                             (player.x - camera_x + PLAYER_SIZE // 2, player.y - camera_y + PLAYER_SIZE // 2), 5)
 
 
 class Fireball:
@@ -336,7 +334,7 @@ class Fireball:
             self.dx = 0
             self.dy = 0
         self.size = 20
-        self.lifetime = 300  # 5 секунд при 60 FPS
+        self.lifetime = 300
         self.timer = 0
 
     def move(self):

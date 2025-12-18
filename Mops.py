@@ -2,6 +2,7 @@ import pygame
 import random
 import os
 from sprite_manager import load_image
+from sound_manager import sound_manager  # Добавьте этот импорт
 
 PLAYER_SIZE = 40
 RESOURCE_SIZE = 70
@@ -14,11 +15,13 @@ mops_type = ['mops']
 
 mops_sprite = None
 
+
 def get_mops_sprite():
     global mops_sprite
     if mops_sprite is None:
         mops_sprite = load_image("Mops1.png", (PLAYER_SIZE, PLAYER_SIZE))
     return mops_sprite
+
 
 class Mops:
     def __init__(self, x, y, mops_type, screen):
@@ -27,6 +30,7 @@ class Mops:
         self.speed = 2
         self.direction = random.choice(['down', 'right', 'up', 'left'])
         self.move_timer = 0
+        self.sound_timer = random.randint(120, 300)  # Таймер для звуков
         self.hp = 10
         self.type = mops_type
         self.is_moving = False
@@ -34,6 +38,14 @@ class Mops:
     def move(self, resources):
         prev_x, prev_y = self.x, self.y
         self.move_timer += 1
+        self.sound_timer -= 1
+
+        # Воспроизведение случайных звуков мопса
+        if self.sound_timer <= 0:
+            if random.random() < 0.3:  # 30% шанс на звук
+                sound_manager.play_npc_sound('mops', self.x, self.y)
+            self.sound_timer = random.randint(180, 480)  # 3-8 секунд
+
         if self.move_timer >= 60:
             self.direction = random.choice(['down', 'right', 'up', 'left'])
             self.move_timer = 0
@@ -102,19 +114,17 @@ class Mops:
             x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
             y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
             mops_type = random.choice(mops_types)
-            candidate = Mops(x, y, mops_type, None)  # screen не нужен для проверки
-            # Проверяем расстояние до существующих объектов
+            candidate = Mops(x, y, mops_type, None)
             too_close = False
             for obj in existing_objects:
                 dx = candidate.x - obj.x
                 dy = candidate.y - obj.y
                 distance = (dx ** 2 + dy ** 2) ** 0.5
-                if distance < 140:  # MIN_DISTANCE из gg2
+                if distance < 140:
                     too_close = True
                     break
             if not too_close:
                 return candidate
-        # Если не удалось, спавним в любом случае
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
         y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
         mops_type = random.choice(mops_types)
