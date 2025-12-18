@@ -10,25 +10,25 @@ WORLD_HEIGHT = 3000
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
-animal_types = ['sheep']
+mops_type = ['mops']
 
-sheep_sprite = None
+mops_sprite = None
 
-def get_sheep_sprite():
-    global sheep_sprite
-    if sheep_sprite is None:
-        sheep_sprite = load_image("Sheep.png", (PLAYER_SIZE, PLAYER_SIZE))
-    return sheep_sprite
+def get_mops_sprite():
+    global mops_sprite
+    if mops_sprite is None:
+        mops_sprite = load_image("Mops1.png", (PLAYER_SIZE, PLAYER_SIZE))
+    return mops_sprite
 
-class Animal:
-    def __init__(self, x, y, animal_type, screen):
+class Mops:
+    def __init__(self, x, y, mops_type, screen):
         self.x = x
         self.y = y
         self.speed = 2
         self.direction = random.choice(['down', 'right', 'up', 'left'])
         self.move_timer = 0
         self.hp = 10
-        self.type = animal_type
+        self.type = mops_type
         self.is_moving = False
 
     def move(self, resources):
@@ -76,7 +76,7 @@ class Animal:
 
         total_angle = base_angle + tilt
 
-        sprite = get_sheep_sprite()
+        sprite = get_mops_sprite()
         if self.direction == 'right':
             sprite = pygame.transform.flip(sprite, True, False)
         if sprite:
@@ -96,13 +96,13 @@ class Animal:
         pygame.draw.rect(screen, GREEN, (bar_x, bar_y, health_width, bar_height))
 
     @staticmethod
-    def spawn_animal(existing_objects, animal_types):
+    def spawn_mops(existing_objects, mops_types):
         attempts = 100
         for _ in range(attempts):
             x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
             y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
-            animal_type = random.choice(animal_types)
-            candidate = Animal(x, y, animal_type, None)  # screen не нужен для проверки
+            mops_type = random.choice(mops_types)
+            candidate = Mops(x, y, mops_type, None)  # screen не нужен для проверки
             # Проверяем расстояние до существующих объектов
             too_close = False
             for obj in existing_objects:
@@ -117,5 +117,5 @@ class Animal:
         # Если не удалось, спавним в любом случае
         x = random.randint(0, WORLD_WIDTH - PLAYER_SIZE)
         y = random.randint(0, WORLD_HEIGHT - PLAYER_SIZE)
-        animal_type = random.choice(animal_types)
-        return Animal(x, y, animal_type, None)
+        mops_type = random.choice(mops_types)
+        return Mops(x, y, mops_type, None)
