@@ -9,7 +9,7 @@ from healthbar import HealthBar
 from day_night import DayNightCycle
 from enemy import Enemy
 from boss import Boss, Fireball
-from animal import Animal, animal_types, animal_sprites
+from animal import Animal, animal_types
 from player import Player, PushbackWave, Lightning
 from resource import Resource
 from building_system import Building

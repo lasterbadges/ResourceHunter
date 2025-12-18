@@ -3,26 +3,23 @@ import random
 import os
 from sprite_manager import load_image
 
-pygame.init()
-
 PLAYER_SIZE = 40
 RESOURCE_SIZE = 70
 WORLD_WIDTH = 3000
 WORLD_HEIGHT = 3000
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-font = pygame.font.SysFont(None, 24)
 
+animal_types = ['sheep']
 
-animal_types = ['cow', 'wolf', 'sheep']
+sheep_sprite = None
 
-# Спрайты для животных (по типам)
-animal_sprites = {}
-directions = ['down', 'right', 'up', 'left']
+def get_sheep_sprite():
+    global sheep_sprite
+    if sheep_sprite is None:
+        sheep_sprite = load_image("Sheep.png", (PLAYER_SIZE, PLAYER_SIZE))
+    return sheep_sprite
 
-
-
-# Класс Animal (с типом и анимацией)
 class Animal:
     def __init__(self, x, y, animal_type, screen):
         self.x = x
@@ -30,46 +27,14 @@ class Animal:
         self.speed = 2
         self.direction = random.choice(['down', 'right', 'up', 'left'])
         self.move_timer = 0
-        self.hp = 10  # HP для животных
-        self.type = animal_type  # Тип животного
+        self.hp = 10
+        self.type = animal_type
         self.is_moving = False
-        self.walk_timer = 0
-        self.walk_frame = 0
-        for animal_type in animal_types:
-            animal_sprites[animal_type] = {}
-            for dir in directions:
-                animal_sprites[animal_type][dir] = {
-                    'stand': load_image(f"{animal_type}_{dir}_stand.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                    'walk': [
-                        load_image(f"{animal_type}_{dir}_walk1.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                        load_image(f"{animal_type}_{dir}_walk2.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                        load_image(f"{animal_type}_{dir}_walk3.png", (PLAYER_SIZE, PLAYER_SIZE)),
-                        load_image(f"{animal_type}_{dir}_walk4.png", (PLAYER_SIZE, PLAYER_SIZE))
-                    ]
-                }
-
-        # Fallback для left: flip от right, только если right не None
-        for animal_type in animal_types:
-            for key in ['stand', 'walk']:
-                if key == 'stand':
-                    if animal_sprites[animal_type]['right'][key] is not None:
-                        animal_sprites[animal_type]['left'][key] = pygame.transform.flip(
-                            animal_sprites[animal_type]['right'][key], True, False)
-                    else:
-                        animal_sprites[animal_type]['left'][key] = None
-                elif key == 'walk':
-                    animal_sprites[animal_type]['left'][key] = []
-                    for i in range(4):
-                        if animal_sprites[animal_type]['right'][key][i] is not None:
-                            animal_sprites[animal_type]['left'][key].append(
-                                pygame.transform.flip(animal_sprites[animal_type]['right'][key][i], True, False))
-                        else:
-                            animal_sprites[animal_type]['left'][key].append(None)
 
     def move(self, resources):
         prev_x, prev_y = self.x, self.y
         self.move_timer += 1
-        if self.move_timer >= 60:  # Сменить направление каждые ~1 сек
+        if self.move_timer >= 60:
             self.direction = random.choice(['down', 'right', 'up', 'left'])
             self.move_timer = 0
 
@@ -97,28 +62,29 @@ class Animal:
             self.y = max(0, min(WORLD_HEIGHT - PLAYER_SIZE, new_y))
 
         self.is_moving = (self.x != prev_x or self.y != prev_y)
-        if self.is_moving:
-            self.walk_timer += 1
-            if self.walk_timer >= 10:
-                self.walk_frame = (self.walk_frame + 1) % 4
-                self.walk_timer = 0
-        else:
-            self.walk_frame = 0
 
     def draw(self, screen, camera_x, camera_y):
         draw_x = self.x - camera_x
         draw_y = self.y - camera_y
 
-        if self.is_moving:
-            sprite = animal_sprites[self.type][self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = animal_sprites[self.type][self.direction]['stand']
+        angle_direction = {'left': 0, 'right': 0, 'up': -90, 'down': 90}
+        base_angle = angle_direction.get(self.direction, 0)
 
+        tilt = 0
+        if self.is_moving:
+            tilt = 10 if (pygame.time.get_ticks() // 100) % 2 == 0 else -10
+
+        total_angle = base_angle + tilt
+
+        sprite = get_sheep_sprite()
+        if self.direction == 'right':
+            sprite = pygame.transform.flip(sprite, True, False)
         if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
+            rotated = pygame.transform.rotate(sprite, total_angle)
+            rect = rotated.get_rect(center=(draw_x + PLAYER_SIZE // 2, draw_y + PLAYER_SIZE // 2))
+            screen.blit(rotated, rect)
         else:
-            color = GREEN if self.type == 'cow' else (128, 128, 128)  # Разные цвета для типов
-            pygame.draw.rect(screen, color, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
+            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
 
         # Полоска здоровья
         bar_width = PLAYER_SIZE
