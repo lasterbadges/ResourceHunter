@@ -173,21 +173,6 @@ class Player:
 
     # Removed duplicate move method
 
-    def draw(self, screen, camera_x, camera_y):
-        draw_x = self.x - camera_x
-        draw_y = self.y - camera_y
-
-        if self.is_moving:
-            sprite = player_sprites[self.direction]['walk'][self.walk_frame]
-        else:
-            sprite = player_sprites[self.direction]['stand']
-
-        if sprite:
-            screen.blit(sprite, (draw_x, draw_y))
-        else:
-            pygame.draw.rect(screen, GREEN, (draw_x, draw_y, PLAYER_SIZE, PLAYER_SIZE))
-            text = self.font.render(self.direction, True, BLACK)
-            screen.blit(text, (draw_x + 5, draw_y + 5))
 
     def move(self, keys):
         if self.roll_cooldown > 0:

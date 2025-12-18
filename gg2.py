@@ -15,6 +15,7 @@ from resource import Resource
 from building_system import Building
 from sprite_manager import load_image
 from sound_manager import sound_manager
+from toolbar import Toolbar
 # Инициализация Pygame
 pygame.init()
 
@@ -94,14 +95,20 @@ def save_game(player, inventory, tools, current_tool):
     }
     with open('save.json', 'w') as f:
         json.dump(data, f)
+    print("Game saved.")
 
 
 def load_game():
     try:
         with open('save.json', 'r') as f:
             data = json.load(f)
+        print("Save data loaded successfully:", data)
         return data
     except FileNotFoundError:
+        print("Save file not found, starting new game.")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"Error loading save file: {e}, starting new game.")
         return None
 
 
@@ -720,6 +727,41 @@ def main():
     building_mode = False
     build_options = ['workbench', 'tent', 'trap', 'campfire']
     current_build_index = 0
+    active_menu = None  # Переменная для отслеживания активного меню
+
+    def set_active_menu(menu):
+        global active_menu, inventory_open, craft_open, workbench_menu_open, building_mode
+        if active_menu == menu:
+            # close it
+            if menu == 'inventory':
+                inventory_open = False
+            elif menu == 'craft':
+                craft_open = False
+            elif menu == 'workbench':
+                workbench_menu_open = False
+            elif menu == 'building':
+                building_mode = False
+            active_menu = None
+        else:
+            # close current
+            if active_menu == 'inventory':
+                inventory_open = False
+            elif active_menu == 'craft':
+                craft_open = False
+            elif active_menu == 'workbench':
+                workbench_menu_open = False
+            elif active_menu == 'building':
+                building_mode = False
+            # open new
+            if menu == 'inventory':
+                inventory_open = True
+            elif menu == 'craft':
+                craft_open = True
+            elif menu == 'workbench':
+                workbench_menu_open = True
+            elif menu == 'building':
+                building_mode = True
+            active_menu = menu
 
     menu_camera_x = 0
     menu_camera_y = 0
@@ -752,6 +794,7 @@ def main():
     # Загрузка сохранения
     save_data = load_game()
     if save_data:
+        print("Applying save data...")
         player.x = save_data.get('player_x', player.x)
         player.y = save_data.get('player_y', player.y)
         player.hp = save_data.get('player_hp', player.hp)
@@ -759,6 +802,10 @@ def main():
         tools.update(save_data.get('tools', {}))
         current_tool = save_data.get('current_tool', current_tool)
         player.pushback_cooldown = save_data.get('pushback_cooldown', 0)
+        print(f"Loaded player position: {player.x}, {player.y}, HP: {player.hp}")
+        print(f"Loaded inventory: {inventory}")
+        print(f"Loaded tools: {tools}")
+        print(f"Loaded current tool: {current_tool}")
 
     # Спавн ресурсов с проверкой расстояния
     resources = []
@@ -828,6 +875,9 @@ def main():
         loaded_frame_img
     )
 
+    # --- Toolbar Instance Creation ---
+    toolbar = Toolbar(screen_width, screen_height, font)
+
     f = 1  # Управляющий фактор направления для фона меню (1: вправо, -1: влево)
     running = True
     while running:
@@ -841,6 +891,7 @@ def main():
         events = pygame.event.get()
         for event in events:
             if event.type == pygame.QUIT:
+                save_game(player, inventory, tools, current_tool)
                 running = False
 
         # Обработка событий в зависимости от состояния
@@ -1036,16 +1087,15 @@ def main():
                                     print("Мясо пожарено!")
                                     pygame.time.wait(200)
 
-                # Смена инструментов (только если меню закрыты)
-                if not inventory_open and not craft_open and not workbench_menu_open:
-                    if keys[pygame.K_1]:
-                        current_tool = 'hand'
-                    elif keys[pygame.K_2] and tools['axe']:
-                        current_tool = 'axe'
-                    elif keys[pygame.K_3] and tools['pickaxe']:
-                        current_tool = 'pickaxe'
-                    elif keys[pygame.K_4] and tools['sword']:
-                        current_tool = 'sword'
+                # Смена инструментов (только если меню закрыты и не в режиме строительства)
+                if not inventory_open and not craft_open and not workbench_menu_open and not building_mode:
+                    for i in range(1, 9):
+                        key = getattr(pygame, f'K_{i}')
+                        if keys[key]:
+                            selected = toolbar.select_slot(i - 1, inventory, tools)
+                            if selected:
+                                current_tool = selected
+                            break
 
                 if keys[pygame.K_f] and inventory['food'] > 0 and food_cooldown <= 0:
                     player.hp = min(100, player.hp + 20)
@@ -1314,6 +1364,10 @@ def main():
 
                     screen.blit(darkness, (0, 0))
 
+                # Рисуем тулбар, если не в режиме строительства
+                if not building_mode:
+                    toolbar.draw(screen, inventory, tools, current_tool)
+
                 # Визуальный таймер cooldown кувырка
                 key = str((player.roll_cooldown + 59) // 60) if player.roll_cooldown > 0 else 'ready'
                 screen.blit(cooldown_sprites[key], (screen_width - 100, 50))
@@ -1330,9 +1384,9 @@ def main():
                         screen.blit(font.render("Отталкивание: готово", True, (0, 150, 0)), (10, 185))
                     
                     screen.blit(font.render(pos_text, True, BLACK), (10, 100))
-                    
+
                     player_health_bar.draw(screen)
-                    
+
                     # Полоска маны под полоской здоровья
                     mana_bar_width = 150
                     mana_bar_height = 15
