@@ -42,6 +42,7 @@ PUSHBACK_RANGE = 120  # Радиус атаки отталкивания
 PUSHBACK_DAMAGE = 5  # Урон от отталкивания
 PUSHBACK_FORCE = 15  # Сила отталкивания
 PUSHBACK_COOLDOWN = 15000  # Перезарядка отталкивания (15 секунд)
+day_music_played = False
 
 
 BUILDING_SIZE = 60  # Размер построек
@@ -946,14 +947,28 @@ def main():
 
                 # Обновление системы дня и ночи
                 day_night_cycle.update()
+
+                # Обновление звукового менеджера (для плавных переходов)
+                sound_manager.update()
+
                 # Управление музыкой в зависимости от времени суток
-                if day_night_cycle.is_day():
-                    if sound_manager.music_playing:
-                        sound_manager.stop_music()
+                is_daytime = day_night_cycle.is_day()
+
+                if is_daytime:
+                    # День - включаем дневную музыку
+                    if not sound_manager.music_playing or sound_manager.current_music != 'day':
+                        sound_manager.play_day_music()
+                        day_music_played = True
                 else:
-                    # Ночь - включаем музыку только если враги начинают спавниться
-                    if len(enemies) > 0 and not sound_manager.music_playing:
-                        sound_manager.play_night_music()
+                    # Ночь - проверяем, есть ли враги для ночной музыки
+                    if len(enemies) > 0:
+                        # Есть враги - включаем ночную музыку
+                        if not sound_manager.music_playing or sound_manager.current_music != 'night':
+                            sound_manager.play_night_music()
+                    else:
+                        # Нет врагов - плавно выключаем музыку
+                        if sound_manager.music_playing and sound_manager.current_music == 'night':
+                            sound_manager.stop_music_fade()
 
                 if day_night_cycle.is_day() == False and len(enemies) < 5:
                     for _ in range(5):
@@ -961,7 +976,7 @@ def main():
                         if new_enemy:
                             enemies.append(new_enemy)
                             # Включаем ночную музыку при спавне первого врага ночью
-                            if not sound_manager.music_playing:
+                            if not sound_manager.music_playing or sound_manager.current_music != 'night':
                                 sound_manager.play_night_music()
 
                 # Обновление cooldown для SPACE
