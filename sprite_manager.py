@@ -1,5 +1,8 @@
 import os
 import pygame
+import sys
+
+base_path = getattr(sys, '_MEIPASS', os.getcwd())
 
 screen_width = 800
 screen_height = 800
@@ -46,7 +49,7 @@ DARK_RED = (139, 0, 0)  # Для капкана
 
 # Загрузка изображений (теперь 5 фреймов: stand + 4 walk)
 def load_image(filename, size):
-    filepath = os.path.join(os.getcwd(), 'sprites', filename)
+    filepath = os.path.join(base_path, 'sprites', filename)
     print(f"Trying to load {filepath}")
     if os.path.exists(filepath):
         print(f"File exists: {filepath}")

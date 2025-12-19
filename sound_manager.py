@@ -2,6 +2,9 @@ import pygame
 import random
 import os
 import math
+import sys
+
+base_path = getattr(sys, '_MEIPASS', os.getcwd())
 
 # Инициализация микшера
 pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
@@ -49,9 +52,10 @@ class SoundManager:
                 # Для звуков со списком вариантов
                 self.sounds[sound_name] = []
                 for i, filepath in enumerate(filepaths):
+                    full_filepath = os.path.join(base_path, filepath)
                     try:
-                        if os.path.exists(filepath):
-                            sound = pygame.mixer.Sound(filepath)
+                        if os.path.exists(full_filepath):
+                            sound = pygame.mixer.Sound(full_filepath)
                             # Устанавливаем базовую громкость
                             if sound_name == 'mops':
                                 sound.set_volume(0.4)
@@ -73,24 +77,25 @@ class SoundManager:
                             self.sounds[sound_name].append(sound)
                             print(f"✓ Звук {sound_name}{i + 1} загружен")
                         else:
-                            print(f"✗ Файл не найден: {filepath}")
+                            print(f"✗ Файл не найден: {full_filepath}")
                             self.sounds[sound_name].append(None)
                     except Exception as e:
-                        print(f"Ошибка загрузки {filepath}: {e}")
+                        print(f"Ошибка загрузки {full_filepath}: {e}")
                         self.sounds[sound_name].append(None)
             else:
                 # Для одиночных звуков
+                full_filepath = os.path.join(base_path, filepaths)
                 try:
-                    if os.path.exists(filepaths):
-                        sound = pygame.mixer.Sound(filepaths)
+                    if os.path.exists(full_filepath):
+                        sound = pygame.mixer.Sound(full_filepath)
                         sound.set_volume(0.5)
                         self.sounds[sound_name] = sound
                         print(f"✓ Звук {sound_name} загружен")
                     else:
-                        print(f"✗ Файл не найден: {filepaths}")
+                        print(f"✗ Файл не найден: {full_filepath}")
                         self.sounds[sound_name] = None
                 except Exception as e:
-                    print(f"Ошибка загрузки {filepaths}: {e}")
+                    print(f"Ошибка загрузки {full_filepath}: {e}")
                     self.sounds[sound_name] = None
 
     def update(self):
@@ -195,7 +200,8 @@ class SoundManager:
                 if pygame.mixer.music.get_busy():
                     pygame.mixer.music.stop()
 
-                pygame.mixer.music.load("sounds/day.mp3")
+                music_path = os.path.join(base_path, "sounds/day.mp3")
+                pygame.mixer.music.load(music_path)
                 pygame.mixer.music.set_volume(0)
                 pygame.mixer.music.play(-1)
 
@@ -218,7 +224,8 @@ class SoundManager:
                 if pygame.mixer.music.get_busy():
                     pygame.mixer.music.stop()
 
-                pygame.mixer.music.load("sounds/night.mp3")
+                music_path = os.path.join(base_path, "sounds/night.mp3")
+                pygame.mixer.music.load(music_path)
                 pygame.mixer.music.set_volume(0)
                 pygame.mixer.music.play(-1)
 
