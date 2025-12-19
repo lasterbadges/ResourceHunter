@@ -17,6 +17,7 @@ from building_system import Building
 from sprite_manager import load_image
 from sound_manager import sound_manager
 from toolbar import Toolbar
+toolbar = None  # Глобальная переменная для тулбара
 # Инициализация Pygame
 pygame.init()
 
@@ -64,7 +65,7 @@ YELLOW = (255, 255, 0)  # Для палатки
 DARK_RED = (139, 0, 0)  # Для капкана
 
 # Инициализация экрана и шрифта
-screen = pygame.display.set_mode((screen_width, screen_height))
+screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
 pygame.display.set_caption("Survival Game")
 font = pygame.font.SysFont(None, 24)
 # Set up the screen
@@ -243,7 +244,7 @@ def draw_settings():
 
 
 def handle_settings_events(events):
-    global game_state, previous_state, screen_width, screen_height, screen
+    global game_state, previous_state, screen_width, screen_height, screen, toolbar
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = pygame.mouse.get_pos()
@@ -253,15 +254,18 @@ def handle_settings_events(events):
             back_button = pygame.Rect(screen_width // 2 - 100, screen_height // 2 + 110, 200, 50)
             if res1_button.collidepoint(mouse_pos):
                 screen_width, screen_height = 800, 800
-                screen = pygame.display.set_mode((screen_width, screen_height))
+                screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
+                toolbar.update(screen_width, screen_height)
                 print(f"Resolution changed to {screen_width}x{screen_height}")
             elif res2_button.collidepoint(mouse_pos):
                 screen_width, screen_height = 1024, 768
-                screen = pygame.display.set_mode((screen_width, screen_height))
+                screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
+                toolbar.update(screen_width, screen_height)
                 print(f"Resolution changed to {screen_width}x{screen_height}")
             elif res3_button.collidepoint(mouse_pos):
                 screen_width, screen_height = 1280, 720
-                screen = pygame.display.set_mode((screen_width, screen_height))
+                screen = pygame.display.set_mode((screen_width, screen_height), pygame.RESIZABLE)
+                toolbar.update(screen_width, screen_height)
                 print(f"Resolution changed to {screen_width}x{screen_height}")
             elif back_button.collidepoint(mouse_pos):
                 game_state = previous_state
@@ -735,6 +739,7 @@ def main():
     global inventory
     global tools
     global current_tool
+    global toolbar
 
     player = Player(screen)
     game_state = 'menu'
@@ -939,6 +944,11 @@ def main():
             if event.type == pygame.QUIT:
                 save_game(player, inventory, tools, current_tool)
                 running = False
+            elif event.type == pygame.VIDEORESIZE:
+                screen_width, screen_height = event.w, event.h
+                toolbar.update(screen_width, screen_height)
+                menu_pos = ((screen_width - MENU_WIDTH) // 2, (screen_height - MENU_HEIGHT) // 2)
+                print(f"Window resized to {screen_width}x{screen_height}")
 
         # Обработка событий в зависимости от состояния
         if game_state == 'menu':

@@ -43,6 +43,10 @@ class Toolbar:
                 pygame.draw.rect(screen, (0, 255, 0), slot_rect, 3, border_radius=10)
                 self.current_index = i
 
+    def update(self, screen_width, screen_height):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+
     def is_available(self, item, inventory, tools):
         if item in tools:
             return tools[item]
